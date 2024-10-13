@@ -7,6 +7,7 @@
 #include <stdexcept>
 #include <corecrt_math_defines.h>
 #include <cstdio>
+#include <cmath>
 
 //Coords: (screen, map, player)
 // +-------> x
@@ -23,7 +24,7 @@
 #define DEFAULT_CAMERA_X 0
 #define DEFAULT_CAMERA_ANGLE 0
 #define DEFAULT_CAMERA_FOV_C 60
-#define DEFAULT_RENDER_DISTANCE 60
+#define DEFAULT_RENDER_DISTANCE 1000
 
 #define DEFAULT_MAP_HEIGHT 20
 #define DEFAULT_MAP_WIDTH 20
@@ -98,6 +99,16 @@ public:
         m_player_x = m_player_x + step_forward * cos(m_player_angle) + step_side * sin(m_player_angle);
         m_player_y = m_player_y + step_forward * sin(m_player_angle) - step_side * cos(m_player_angle);
     }
+    //
+    // Add to angle
+    void incrementPlayerAngle(double value) {
+        m_player_angle += value;
+    }
+    //
+    // Substract from angle
+    void decrementPlayerAngle(double value) {
+        m_player_angle -= value;
+    }
 };
 
 // Camera
@@ -116,7 +127,7 @@ public:
         m_camera_x = DEFAULT_CAMERA_X;
         m_camera_angle = DEFAULT_CAMERA_ANGLE;
         m_fov_c = DEFAULT_CAMERA_FOV_C;
-        m_fov = (DEFAULT_CAMERA_FOV_C / 180 * M_PI);
+        m_fov = (m_fov_c / 180 * M_PI);
         m_render_distance = DEFAULT_RENDER_DISTANCE;
     }
     //
@@ -242,6 +253,7 @@ public:
     }
 };
 
+// Screen
 class Screen {
 private:
     std::vector<std::vector<char>> m_screen;
@@ -438,6 +450,11 @@ public:
             }
         }
     }
+    //
+    // Draws dot without check
+    void fDrawDot(int y, int x, char color) {
+        m_screen[y][x] = color;
+    }
 };
 
 // Load map from file by path
@@ -523,6 +540,119 @@ void saveMap(const char* filename, const Map& map) {
 
     file.close();
 }
+
+// Render scene
+void renderDDA(Map& map, Camera& camera, Screen& screen) {
+    char gradient[9] = { '.',':',';','=','+','x','X','$','@' }; // gradient for walls
+
+    int rays_n = screen.getScrWidth();
+    int scr_h = screen.getScrHeight();
+
+    double cam_angle = camera.getCameraAngle();
+    double cam_fov = camera.getFov();
+    double cam_x = camera.getCameraX();
+    double cam_y = camera.getCameraY();
+    double render_distance = camera.getRenderDistance();
+
+    int gridSizeX = map.getMapWidth();
+    int gridSizeY = map.getMapHeight();
+
+    for (int column = 0; column < rays_n; column++) {
+        int map_check_x = cam_x;
+        int map_check_y = cam_y;
+
+        int hit = 0;
+
+        double ray_angle = cam_angle - (cam_fov / 2) + ((column * cam_fov) / rays_n);
+
+        float dx = cos(ray_angle);
+        float dy = sin(ray_angle);
+
+        double unit_step_size_x = sqrt(1 + (dy / dx) * (dy / dx));
+        double unit_step_size_y = sqrt(1 + (dx / dy) * (dx / dy));
+
+        double ray_length_x;
+        double ray_length_y;
+
+        double step_x;
+        double step_y;
+
+        if (dx < 0)
+        {
+            step_x = -1;
+            ray_length_x = (cam_x - float(map_check_x)) * unit_step_size_x;
+        }
+        else {
+            step_x = 1;
+            ray_length_x = (float(map_check_x + 1) - cam_x) * unit_step_size_x;
+        }
+
+        if (dy < 0)
+        {
+            step_y = -1;
+            ray_length_y = (cam_y - float(map_check_y)) * unit_step_size_y;
+        }
+        else {
+            step_y = 1;
+            ray_length_y = (float(map_check_y + 1) - cam_y) * unit_step_size_y;
+        }
+
+        double cur_distance = 0.0;
+        while (cur_distance < render_distance) {
+
+            // walk
+            if (ray_length_x < ray_length_y) {
+                map_check_x += step_x;
+                cur_distance = ray_length_x;
+                ray_length_x += unit_step_size_x;
+            }
+            else {
+                map_check_y += step_y;
+                cur_distance = ray_length_y;
+                ray_length_y += unit_step_size_y;
+            }
+
+            if (map_check_x >= 0 && map_check_x < map.getMapWidth() && map_check_y >= 0 && map_check_y < map.getMapHeight()) {
+                if (map.getObstacle(map_check_y, map_check_x) == '1') {
+                    hit = 1;
+                    break;
+                }
+            }
+        }
+
+        if (hit == 1) {
+            double n_c = cur_distance * cos(ray_angle - cam_angle); // fish eye fix
+
+            int ceiling = (double)(scr_h / 2) - (scr_h / n_c);
+            int floorr = scr_h - ceiling;
+
+            char color; // color of wall
+            int grad_size = sizeof(gradient);
+            if (int(cur_distance) >= grad_size) {
+                color = gradient[0];
+            }
+            else {
+                int color_index = int((grad_size - cur_distance));
+                color = gradient[color_index];
+            }
+
+            for (int i = 0; i < scr_h; i++) {
+                if (i <= ceiling)
+                {
+                    screen.fDrawDot(i, column, ' ');
+                }
+                if (i > ceiling && i <= floorr) {
+                    screen.fDrawDot(i, column, color);
+                }
+                if (i > floorr) {
+                    screen.fDrawDot(i, column, ' ');
+                }
+            }
+        }
+    }
+
+}
+
 
 
 
