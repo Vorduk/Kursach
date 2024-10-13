@@ -23,7 +23,7 @@
 #define DEFAULT_CAMERA_Y 0
 #define DEFAULT_CAMERA_X 0
 #define DEFAULT_CAMERA_ANGLE 0
-#define DEFAULT_CAMERA_FOV_C 60
+#define DEFAULT_CAMERA_FOV_C 50
 #define DEFAULT_RENDER_DISTANCE 1000
 
 #define DEFAULT_MAP_HEIGHT 20
@@ -31,6 +31,9 @@
 
 #define DEFAULT_SCR_HEIGHT 60
 #define DEFAULT_SCR_WIDTH 230
+
+#define MINI_MAP_WIDTH 17
+#define MINI_MAP_HEIGHT 9
 
 // Player
 class Player {
@@ -248,6 +251,10 @@ public:
         return ' ';
     }
 
+    Player& getPlayer() {
+        return m_player;
+    }
+
     Player getPlayer() const {
         return m_player;
     }
@@ -267,7 +274,7 @@ public:
     //
     // Constructor
     Screen(int scr_height, int scr_width) : m_scr_height(scr_height), m_scr_width(scr_width) {
-
+        m_screen.resize(m_scr_height, std::vector<char>(m_scr_width, ' '));
     };
     //
     // Destructor
@@ -303,7 +310,7 @@ public:
     }
     //
     // Outputs screen contents to the console by coords
-    void printScreen—(int x1, int y1, int x2, int y2) {
+    void printScreenC(int x1, int y1, int x2, int y2) {
         // Create a new array to store the shifted elements
         std::vector<std::vector<char>> new_screen(m_scr_height, std::vector<char>(m_scr_width, ' '));
 
@@ -334,6 +341,21 @@ public:
     // Returns the print carriage to the beginning
     void setToBeginningV(int val) {
         printf("\x1b[%dA", val);
+    }
+    //
+    // Draw text
+    void drawText(const std::string& str, int y, int x) {
+        if (y < 0 || y >= m_scr_height || x < 0 || x >= m_scr_width) {
+            std::cerr << "[error] drawText(): Starting position is out of screen bounds." << std::endl;
+            return;
+        }
+
+        for (int i = 0; i < str.size(); ++i) {
+            if (x + i >= m_scr_width) {
+                break;
+            }
+            m_screen[y][x + i] = str[i];
+        }
     }
     //
     // Draws dot on the screen buffer
@@ -455,6 +477,11 @@ public:
     void fDrawDot(int y, int x, char color) {
         m_screen[y][x] = color;
     }
+    //
+    // Gets dot
+    char fGetDot(int y, int x) {
+        return (m_screen[y][x]);
+    }
 };
 
 // Load map from file by path
@@ -558,6 +585,8 @@ void renderDDA(Map& map, Camera& camera, Screen& screen) {
     int gridSizeY = map.getMapHeight();
 
     for (int column = 0; column < rays_n; column++) {
+        int is_corner = 0;
+
         int map_check_x = cam_x;
         int map_check_y = cam_y;
 
@@ -612,9 +641,15 @@ void renderDDA(Map& map, Camera& camera, Screen& screen) {
                 ray_length_y += unit_step_size_y;
             }
 
+            double dot_x = cam_x + dx * cur_distance;
+            double dot_y = cam_y + dy * cur_distance;
+
             if (map_check_x >= 0 && map_check_x < map.getMapWidth() && map_check_y >= 0 && map_check_y < map.getMapHeight()) {
                 if (map.getObstacle(map_check_y, map_check_x) == '1') {
                     hit = 1;
+                    if ((fabs(dot_x - round(dot_x)) < 0.05) && (fabs(dot_y - round(dot_y)) < 0.05)) {
+                        is_corner = 1;
+                    }
                     break;
                 }
             }
@@ -636,6 +671,99 @@ void renderDDA(Map& map, Camera& camera, Screen& screen) {
                 color = gradient[color_index];
             }
 
+            // Corners of the wall blocks
+            if (is_corner == 1) {
+                color = '|';
+            }
+
+            for (int i = 0; i < scr_h; i++) {
+                if (i <= ceiling)
+                {
+                    screen.fDrawDot(i, column, ' ');
+                }
+                if (i > ceiling && i <= floorr) {
+                    screen.fDrawDot(i, column, color);
+                }
+                if (i > floorr) {
+                    screen.fDrawDot(i, column, '-');
+                }
+            }
+        }
+    }
+
+}
+
+// Render scene
+void render(Map& map, Camera& camera, Screen& screen) {
+    char gradient[9] = { '.',':',';','=','+','x','X','$','@' }; // gradient for walls
+
+    int rays_n = screen.getScrWidth();
+    int scr_h = screen.getScrHeight();
+
+    double cam_angle = camera.getCameraAngle();
+    double cam_fov = camera.getFov();
+    double cam_x = camera.getCameraX();
+    double cam_y = camera.getCameraY();
+    double render_distance = camera.getRenderDistance();
+
+    int gridSizeX = map.getMapWidth();
+    int gridSizeY = map.getMapHeight();
+
+    for (int column = 0; column < rays_n; column++) {
+
+        int hit_h = 0;
+        int hit_a = 0;
+
+        // Column ray angle
+        double ray_angle = cam_angle - (cam_fov / 2) + ((column * cam_fov) / rays_n);;
+
+        double ray_x = cos(ray_angle);
+        double ray_y = sin(ray_angle);
+
+        // flags
+        int hit = 0; // ray hits wall
+        int is_corner = 0;
+
+        double cur_distance = 0;
+        for (cur_distance; cur_distance <= render_distance; cur_distance += 0.05) {
+            double dot_x = cam_x + cur_distance * ray_x;
+            double dot_y = cam_y + cur_distance * ray_y;
+
+            int grid_x = (int)dot_x;
+            int grid_y = (int)dot_y;
+
+
+            // if ray hits wall
+            if (map.getObstacle(grid_y, grid_x) == '1') {
+                hit = 1;
+                if ((fabs(dot_x - round(dot_x)) < 0.05) && (fabs(dot_y - round(dot_y)) < 0.05)) {
+                    is_corner = 1;
+                }
+                break;
+            }
+        }
+
+        if (hit == 1) {
+            double n_c = cur_distance * cos(ray_angle - cam_angle); // fish eye fix
+
+            int ceiling = (double)(scr_h / 2) - (scr_h / n_c);
+            int floorr = scr_h - ceiling;
+
+            char color; // color of wall
+            int grad_size = sizeof(gradient);
+            if (int(cur_distance) >= grad_size) {
+                color = gradient[0];
+            }
+            else {
+                int color_index = int((grad_size - cur_distance));
+                color = gradient[color_index];
+            }
+
+            // Corners of the wall blocks
+            if (is_corner == 1) {
+                color = '|';
+            }
+
             for (int i = 0; i < scr_h; i++) {
                 if (i <= ceiling)
                 {
@@ -649,8 +777,69 @@ void renderDDA(Map& map, Camera& camera, Screen& screen) {
                 }
             }
         }
+   
+    }
+}
+
+// Drawing map
+void drawMap(Map& map, Camera& camera, Screen& screen) {
+    char wall_ch = '#';
+    char heal_ch = 'h';
+    char empty_ch = ' ';
+    char border_ch = '+';
+    char ray_ch = '.';
+    char player_ch = 'P';
+
+    int map_height = map.getMapHeight();
+    int map_width = map.getMapWidth();
+
+    screen.drawRect(0, 0, MINI_MAP_HEIGHT + 2, MINI_MAP_WIDTH + 2, '+', ' ');
+
+    int p_x = map.getPlayer().getPlayerX();
+    int p_y = map.getPlayer().getPlayerY();
+
+    // Calculate the offset to center the player
+    int offset_x = (int)map.getPlayer().getPlayerX() - MINI_MAP_WIDTH / 2;
+    int offset_y = (int)map.getPlayer().getPlayerY() - MINI_MAP_HEIGHT / 2;
+
+    // Draw the obstacle map, clipped to MINI_MAP_WIDTHxMINI_MAP_HEIGHT area around the playÂer
+    for (int i = 0; i < map_height; i++) {
+        for (int j = 0; j < map_width; j++) {
+            int screen_x = j - offset_x + 1;
+            int screen_y = i - offset_y + 1;
+            if (screen_x >= 1 && screen_x < MINI_MAP_WIDTH + 1 && screen_y >= 1 && screen_y < MINI_MAP_HEIGHT + 1) {
+                if (map.getObstacle(i, j) == '0') {
+                    screen.fDrawDot(screen_y, screen_x, empty_ch);
+                }
+                else {
+                    screen.fDrawDot(screen_y, screen_x, wall_ch); 
+                }
+            }
+        }
     }
 
+    // Draw the field of vi ew sector
+    double fov_half = camera.getFov();
+    double start_angle = map.getPlayer().getPlayerAngle() - fov_half;
+    double end_angle = map.getPlayer().getPlayerAngle() + fov_half;
+    int ray_length = 5;
+    int num_rays = (int)(fov_half / 0.1) + 1; // calculate the number of rays needed to cover the sector
+    for (int i = 0; i < num_rays; i++) {
+        double angle = start_angle + i * (fov_half * 2) / num_rays;
+        for (int j = 1; j <= ray_length; j++) {
+            int ray_x = (int)(MINI_MAP_WIDTH / 2 + 1 + j * cos(angle));
+            int ray_y = (int)(MINI_MAP_HEIGHT / 2 + 1 + j * sin(angle));
+            if (ray_x >= 1 && ray_x < MINI_MAP_WIDTH + 1 && ray_y >= 1 && ray_y < MINI_MAP_HEIGHT + 1) {
+                if (screen.fGetDot(ray_y, ray_x) == ' ') {
+                    screen.fDrawDot(ray_y, ray_x, ray_ch); // ray character
+                }
+            }
+        }
+    }
+
+
+    // Draw the player
+    screen.fDrawDot(MINI_MAP_HEIGHT / 2 + 1, MINI_MAP_WIDTH / 2 + 1, player_ch);
 }
 
 
