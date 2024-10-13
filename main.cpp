@@ -38,7 +38,9 @@ void mainLoop(Screen screen, Map map, Camera camera) {
     int exit = 0;
     double fps = 0;
     while (!exit) {
-        
+        map.getPlayer().setPlayerPrevX();
+        map.getPlayer().setPlayerPrevY();
+
         auto start = std::chrono::high_resolution_clock::now();
 
         if (map.getPlayer().getPlayerAngle() >= 180) {
@@ -94,6 +96,8 @@ void mainLoop(Screen screen, Map map, Camera camera) {
             }
         }
 
+        processPlayerCollision(map);
+
         if (cc == -1) {
             POINT cursor_pos;
             GetCursorPos(&cursor_pos);
@@ -138,6 +142,8 @@ void mainLoop(Screen screen, Map map, Camera camera) {
 }
 
 void mainLoop2(Screen screen1, Map map1, Camera camera1, Screen screen2, Map map2, Camera camera2) {
+    processPlayerCollision(map1);
+    processPlayerCollision(map2);
 
     double step_f = 0.2; // Speed of foward movement of player
     double step_b = -0.2; // Speed of backward movement of player
@@ -245,10 +251,10 @@ void mainLoop2(Screen screen1, Map map1, Camera camera1, Screen screen2, Map map
                 SetCursorPos(w_cons - 1, y); // Clamp to right edge
                 prev_x = w_cons - 1;
             }
-            else if (x <= 20) { // Cursor hits left edge with a 20-pixel threshold
+            else if (x <= 60) { // Cursor hits left edge with a 20-pixel threshold
                 if (x <= prev_x) { // Cursor is moving towards the left edge
-                    SetCursorPos(20, y); // Clamp to left edge with a small offset
-                    prev_x = 20;
+                    SetCursorPos(60, y); // Clamp to left edge with a small offset
+                    prev_x = 60;
                 }
                 else {
                     SetCursorPos(x, y); // Set cursor to current position

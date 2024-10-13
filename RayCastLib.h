@@ -38,6 +38,8 @@
 // Player
 class Player {
 private:
+    double m_player_prev_y;
+    double m_player_prev_x;
     double m_player_y;
     double m_player_x;
     double m_player_angle;
@@ -47,6 +49,8 @@ public:
         m_player_y = DEFAULT_PLAYER_Y;
         m_player_x = DEFAULT_PLAYER_X;
         m_player_angle = DEFAULT_PLAYER_ANGLE;
+        m_player_prev_y = m_player_x;
+        m_player_prev_x = m_player_x;
     };
     //
     // Constructor
@@ -54,6 +58,8 @@ public:
         m_player_y = player_y;
         m_player_x = player_x;
         m_player_angle = player_angle;
+        m_player_prev_y = m_player_x;
+        m_player_prev_x = m_player_x;
     };
     //
     // Destructor
@@ -77,6 +83,12 @@ public:
     }
     double getPlayerX() {
         return m_player_x;
+    }
+    void setPlayerPrevY() {
+        m_player_prev_y = m_player_y;
+    }
+    void setPlayerPrevX() {
+        m_player_prev_x = m_player_x;
     }
     void setPlayerAngle(double player_angle) {
         m_player_angle = player_angle;
@@ -111,6 +123,12 @@ public:
     // Substract from angle
     void decrementPlayerAngle(double value) {
         m_player_angle -= value;
+    }
+    //
+    // Return player to previous position
+    void returnBack() {
+        m_player_x = m_player_prev_x;
+        m_player_y = m_player_prev_y;
     }
 };
 
@@ -258,7 +276,15 @@ public:
     Player getPlayer() const {
         return m_player;
     }
+
+    
 };
+
+void processPlayerCollision(Map& map) {
+    if (map.getObstacle(map.getPlayer().getPlayerY(), map.getPlayer().getPlayerX()) == '1') {
+        map.getPlayer().returnBack();
+    }
+}
 
 // Screen
 class Screen {
