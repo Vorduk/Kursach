@@ -58,6 +58,7 @@ void mainLoop(Screen screen, Map map, Camera camera) {
         screen.drawText("FPS: " + std::to_string(static_cast<int>(fps)), 0, 200);
         screen.drawText("Player x: " + std::to_string(map.getPlayer().getPlayerX()), 1, 200);
         screen.drawText("Player y: " + std::to_string(map.getPlayer().getPlayerY()), 2, 200);
+        screen.drawText("Player hp: " + std::to_string(map.getPlayer().getPlayerHealth()), 3, 200);
         screen.printScreen();
         screen.setToBeginning();
 
@@ -128,7 +129,7 @@ void mainLoop(Screen screen, Map map, Camera camera) {
             }
             prev_x = x; // Update previous x coordinate
         }
-
+        
         auto end = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> elapsed = end - start;
 
@@ -137,7 +138,7 @@ void mainLoop(Screen screen, Map map, Camera camera) {
         //std::this_thread::sleep_for(std::chrono::milliseconds(16));
     }
 
-    screen.clearScreen();
+    system("cls");
     saveMap("MAP2.txt", map);
 }
 

@@ -16,6 +16,7 @@
 // v 0000000
 // y
 
+#define DEFAULT_PLAYER_HEALTH 100
 #define DEFAULT_PLAYER_Y 0
 #define DEFAULT_PLAYER_X 0
 #define DEFAULT_PLAYER_ANGLE 0
@@ -155,6 +156,7 @@ public:
 // Player
 class Player {
 private:
+    int m_player_health;
     double m_player_prev_y;
     double m_player_prev_x;
     double m_player_y;
@@ -163,6 +165,7 @@ private:
 public:
     // Default constructor
     Player() {
+        m_player_health = DEFAULT_PLAYER_HEALTH;
         m_player_y = DEFAULT_PLAYER_Y;
         m_player_x = DEFAULT_PLAYER_X;
         m_player_angle = DEFAULT_PLAYER_ANGLE;
@@ -171,7 +174,8 @@ public:
     };
     //
     // Constructor
-    Player(double player_y, double player_x, double player_angle) {
+    Player(int player_health, double player_y, double player_x, double player_angle) {
+        m_player_health = player_health;
         m_player_y = player_y;
         m_player_x = player_x;
         m_player_angle = player_angle;
@@ -185,6 +189,12 @@ public:
     };
     // 
     // Setters and getters
+    void setPlayerHealth(int player_health) {
+        m_player_health = player_health;
+    }
+    int getPlayerHealth() {
+        return m_player_health;
+    }
     void setPlayerCoords(double player_y, double player_x) {
         m_player_y = player_y;
         m_player_x = player_x;
@@ -246,6 +256,11 @@ public:
     void returnBack() {
         m_player_x = m_player_prev_x;
         m_player_y = m_player_prev_y;
+    }
+    //
+    // Applay damage to player
+    void applyDamage(int damage) {
+        m_player_health -= damage;
     }
 };
 
@@ -398,7 +413,8 @@ public:
 };
 
 void processPlayerCollision(Map& map) {
-    if (map.getObstacle(map.getPlayer().getPlayerY(), map.getPlayer().getPlayerX()) == '1') {
+    char check = map.getObstacle(map.getPlayer().getPlayerY(), map.getPlayer().getPlayerX());
+    if (check == '1' || check == '2') {
         map.getPlayer().returnBack();
     }
 }
@@ -489,7 +505,7 @@ public:
     // Draw text
     void drawText(const std::string& str, int y, int x) {
         if (y < 0 || y >= m_scr_height || x < 0 || x >= m_scr_width) {
-            std::cerr << "[error] drawText(): Starting position is out of screen bounds." << std::endl;
+            std::cerr << "[ERROR]: drawText(): Starting position is out of screen bounds." << std::endl;
             return;
         }
 
@@ -504,11 +520,11 @@ public:
     // Draws dot on the screen buffer
     void drawDot(int y, int x, char color) {
         if (x < 0 || x >= m_scr_width) {
-            std::cerr << "[error] drawDot: wrong x" << std::endl;
+            std::cerr << "[ERROR]: drawDot(): wrong x" << std::endl;
             return;
         }
         if (y < 0 || y >= m_scr_height) {
-            std::cerr << "[error] drawDot: wrong y" << std::endl;
+            std::cerr << "[ERROR]: drawDot(): wrong y" << std::endl;
             return;
         }
 
@@ -518,19 +534,19 @@ public:
     // Draws line with char color
     void drawLine(int x1, int y1, int x2, int y2, char color) {
         if (x1 < 0 || x1 >= m_scr_width) {
-            std::cerr << "[error] drawLine: Wrong x1" << std::endl;
+            std::cerr << "[ERROR]: drawLine(): Wrong x1" << std::endl;
             return;
         }
         if (x2 < 0 || x2 >= m_scr_width) {
-            std::cerr << "[error] drawLine: Wrong x2" << std::endl;
+            std::cerr << "[ERROR]: drawLine(): Wrong x2" << std::endl;
             return;
         }
         if (y1 < 0 || y1 >= m_scr_height) {
-            std::cerr << "[error] drawLine: Wrong y1" << std::endl;
+            std::cerr << "[ERROR]: drawLine(): Wrong y1" << std::endl;
             return;
         }
         if (y2 < 0 || y2 >= m_scr_height) {
-            std::cerr << "[error] drawLine: Wrong y2" << std::endl;
+            std::cerr << "[ERROR]: drawLine(): Wrong y2" << std::endl;
             return;
         }
 
@@ -582,19 +598,19 @@ public:
     // Draws rectangle
     void drawRect(int y1, int x1, int y2, int x2, char border_color, char fill_color) {
         if (x1 < 0 || x1 >= m_scr_width) {
-            std::cerr << "[error] drawRect: Wrong x1" << std::endl;
+            std::cerr << "[ERROR]: drawRect(): Wrong x1" << std::endl;
             return;
         }
         if (x2 < 0 || x2 >= m_scr_width) {
-            std::cerr << "[error] drawRect: Wrong x2" << std::endl;
+            std::cerr << "[ERROR]: drawRect(): Wrong x2" << std::endl;
             return;
         }
         if (y1 < 0 || y1 >= m_scr_height) {
-            std::cerr << "[error] drawRect: Wrong y1" << std::endl;
+            std::cerr << "[ERROR]: drawRect(): Wrong y1" << std::endl;
             return;
         }
         if (y2 < 0 || y2 >= m_scr_height) {
-            std::cerr << "[error] drawRect: Wrong y2" << std::endl;
+            std::cerr << "[ERROR]: drawRect(): Wrong y2" << std::endl;
             return;
         }
 
@@ -643,23 +659,24 @@ Map loadMapFromFile(const char* filename) {
     std::ifstream file(filename);
 
     if (!file) {
-        throw std::runtime_error("Failed to open map file");
+        throw std::runtime_error("[ERROR]: loadMapFromFile(): Failed to open map file");
     }
 
     // Coords of player from file
+    int player_health_file;
     double player_y_file;
     double player_x_file;
     double player_angle_file;
 
     // Read coords of the player
-    file >> player_y_file >> player_x_file >> player_angle_file;
+    file >> player_health_file >> player_y_file >> player_x_file >> player_angle_file;
 
     if (!file) {
-        throw std::runtime_error("Failed to read coords or angle of the player from file");
+        throw std::runtime_error("[ERROR]: loadMapFromFile(): Failed to read coords or angle of the player from file");
     }
 
     // New player with param from file
-    Player player_file(player_y_file, player_x_file, player_angle_file);
+    Player player_file(player_health_file, player_y_file, player_x_file, player_angle_file);
 
     // Dimensions of the map from file
     int map_h_file;
@@ -669,7 +686,7 @@ Map loadMapFromFile(const char* filename) {
     file >> map_h_file >> map_w_file;
 
     if (!file) {
-        throw std::runtime_error("Failed to read map dimensions from file");
+        throw std::runtime_error("[ERROR]: loadMapFromFile(): Failed to read map dimensions from file");
     }
 
     // New map with param from file
@@ -681,7 +698,7 @@ Map loadMapFromFile(const char* filename) {
             char obstacle_type;
             file >> obstacle_type;
             if (!file) {
-                throw std::runtime_error("Failed to read map data from file");
+                throw std::runtime_error("[ERROR]: loadMapFromFile(): Failed to read map data from file");
             }
             // Skip the comma
             char comma;
@@ -701,8 +718,11 @@ void saveMap(const char* filename, const Map& map) {
     std::ofstream file(filename);
 
     if (!file) {
-        throw std::runtime_error("Failed to open map file for writing");
+        throw std::runtime_error("[ERROR]: saveMap(): Failed to open map file for writing");
     }
+    
+    // Write player health
+    file << map.getPlayer().getPlayerHealth();
 
     // Write coords of the player
     file << map.getPlayer().getPlayerY() << "\n" << map.getPlayer().getPlayerX() << "\n" << map.getPlayer().getPlayerAngle() << std::endl;
@@ -720,6 +740,7 @@ void saveMap(const char* filename, const Map& map) {
     }
 
     file.close();
+    std::cout << "[INFO]: the map has been successfully saved to file" << filename << std::endl;
 }
 
 // Render scene
