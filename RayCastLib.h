@@ -21,6 +21,8 @@
 #define DEFAULT_PLAYER_X 0
 #define DEFAULT_PLAYER_ANGLE 0
 
+#define LAVA_DAMAGE 1
+
 #define DEFAULT_CAMERA_Y 0
 #define DEFAULT_CAMERA_X 0
 #define DEFAULT_CAMERA_ANGLE 0
@@ -416,6 +418,9 @@ void processPlayerCollision(Map& map) {
     char check = map.getObstacle(map.getPlayer().getPlayerY(), map.getPlayer().getPlayerX());
     if (check == '1' || check == '2') {
         map.getPlayer().returnBack();
+    }
+    else if (check == '3') {
+        map.getPlayer().applyDamage(LAVA_DAMAGE);
     }
 }
 
