@@ -23,7 +23,7 @@
 #define DEFAULT_CAMERA_Y 0
 #define DEFAULT_CAMERA_X 0
 #define DEFAULT_CAMERA_ANGLE 0
-#define DEFAULT_CAMERA_FOV_C 50
+#define DEFAULT_CAMERA_FOV_C 40
 #define DEFAULT_RENDER_DISTANCE 1000
 
 #define DEFAULT_MAP_HEIGHT 20
@@ -34,6 +34,123 @@
 
 #define MINI_MAP_WIDTH 17
 #define MINI_MAP_HEIGHT 9
+
+
+// Sprite
+class Sprite {
+private:
+    int m_duration;
+    int m_sprite_height;
+    int m_sprite_width;
+    std::vector<std::vector<std::vector<char>>> m_frames;
+public:
+    // Construuctor
+    Sprite(int duration, int height, int width)
+        : m_duration(duration), m_sprite_height(height), m_sprite_width(width) {}
+    // Adds new frame to sprite
+    void addFrame(const std::vector<std::vector<char>>& frame) {
+        if (frame.size() != m_sprite_height || frame[0].size() != m_sprite_width) {
+            throw std::invalid_argument("[error]: Sprite.AddFrame(): Frame dimensions do not match sprite dimensions.");
+        }
+        m_frames.push_back(frame);
+    }
+    // Save sprite to .txt file by name
+    void saveSpriteToFile(const std::string& filename) const {
+        std::ofstream file(filename);
+        if (!file.is_open()) {
+            throw std::runtime_error("[error]: Sprite.saveSpriteToFile() Unable to open file for writing.");
+        }
+
+        file << m_duration << '\n';
+        file << m_sprite_height << '\n';
+        file << m_sprite_width << '\n';
+
+        for (size_t i = 0; i < m_frames.size(); ++i) {
+            file << i << '\n'; // frame number between frames
+            for (const auto& row : m_frames[i]) {
+                for (char c : row) {
+                    file << c;
+                }
+                file << '\n';
+            }
+        }
+    }
+    // Load sprite from .txt file by name
+    void loadFromFile(const std::string& filename) {
+        std::ifstream file(filename);
+        if (!file.is_open()) {
+            throw std::runtime_error("Unable to open file for reading.");
+        }
+
+        file >> m_duration;
+        file >> m_sprite_height;
+        file >> m_sprite_width;
+        file.ignore(std::numeric_limits<std::streamsize>::max(), '\n'); // skip 0
+
+        m_frames.clear();
+        std::string line;
+
+        while (std::getline(file, line)) {
+            if (line.empty() || std::isdigit(line[0])) {
+                continue; // skip frame number
+
+                std::vector<std::vector<char>> frame;
+                for (int i = 0; i < m_sprite_height; ++i) {
+                    std::vector<char> row;
+                    if (i > 0) {
+                        std::getline(file, line);
+                    }
+                    for (char c : line) {
+                        row.push_back(c);
+                    }
+                    frame.push_back(row);
+                }
+                m_frames.push_back(frame);
+            }
+        }
+    }
+
+};
+
+// Enemy
+class Enemy {
+protected:
+    int m_health;
+    double m_x, m_y;
+    int m_cur_sprite_frame;
+public:
+    Enemy(int hp, int x, int y) : m_health(hp), m_x(x), m_y(y) {
+        m_cur_sprite_frame = 0;
+    }
+
+    virtual void attack() const {
+        std::cout << "Enemy attacks!" << std::endl;
+    }
+
+    virtual ~Enemy() = default;
+};
+
+class Goblin : public Enemy {
+public:
+    Goblin(int x, int y) : Enemy(50, x, y) {}
+
+    void attack() const override {
+        std::cout << "Goblin attacks with a club!" << std::endl;
+    }
+};
+
+class Orc : public Enemy {
+public:
+    Orc(int x, int y) : Enemy(100, x, y) {}
+
+    void attack() const override {
+        std::cout << "Orc attacks with an axe!" << std::endl;
+    }
+};
+
+
+
+
 
 // Player
 class Player {
@@ -504,6 +621,17 @@ public:
         m_screen[y][x] = color;
     }
     //
+    // Draws dot with check but without errors
+    void ffDrawDot(int y, int x, char color) {
+        if (x < 0 || x >= m_scr_width) {
+            return;
+        }
+        if (y < 0 || y >= m_scr_height) {
+            return;
+        }
+        m_screen[y][x] = color;
+    }
+    //
     // Gets dot
     char fGetDot(int y, int x) {
         return (m_screen[y][x]);
@@ -617,6 +745,7 @@ void renderDDA(Map& map, Camera& camera, Screen& screen) {
         int map_check_y = cam_y;
 
         int hit = 0;
+        int hit_door = 0;
 
         double ray_angle = cam_angle - (cam_fov / 2) + ((column * cam_fov) / rays_n);
 
@@ -671,36 +800,60 @@ void renderDDA(Map& map, Camera& camera, Screen& screen) {
             double dot_y = cam_y + dy * cur_distance;
 
             if (map_check_x >= 0 && map_check_x < map.getMapWidth() && map_check_y >= 0 && map_check_y < map.getMapHeight()) {
-                if (map.getObstacle(map_check_y, map_check_x) == '1') {
+                char check = map.getObstacle(map_check_y, map_check_x);
+                if (check == '1') {
                     hit = 1;
                     if ((fabs(dot_x - round(dot_x)) < 0.05) && (fabs(dot_y - round(dot_y)) < 0.05)) {
                         is_corner = 1;
                     }
                     break;
                 }
+                else if (check == '2') {
+                    hit_door = 1;
+                    break;
+                }
+                else if (check == '3') {
+                    int floor_size = 1; double n_c = cur_distance * cos(ray_angle - cam_angle);
+                    int ceiling = (double)(scr_h / 2) - (scr_h / n_c);
+                    int floorr = scr_h - ceiling;
+                    for (int i = floorr - floor_size; i <= floorr; i++) {
+                        for (int j = column - floor_size; j <= column + floor_size; j++) {
+                            screen.ffDrawDot(i, j, '#'); // fill the square with '#' characters
+                        }
+                    }
+                }
+                    
             }
         }
 
-        if (hit == 1) {
-            double n_c = cur_distance * cos(ray_angle - cam_angle); // fish eye fix
+        if (hit == 1 || hit_door == 1) {
 
-            int ceiling = (double)(scr_h / 2) - (scr_h / n_c);
-            int floorr = scr_h - ceiling;
 
             char color; // color of wall
-            int grad_size = sizeof(gradient);
-            if (int(cur_distance) >= grad_size) {
-                color = gradient[0];
-            }
-            else {
-                int color_index = int((grad_size - cur_distance));
-                color = gradient[color_index];
-            }
-
             // Corners of the wall blocks
             if (is_corner == 1) {
                 color = '|';
             }
+            else {
+                int grad_size = sizeof(gradient);
+                if (int(cur_distance) >= grad_size) {
+                    color = gradient[0];
+                }
+                else {
+                    int color_index = int((grad_size - cur_distance));
+                    color = gradient[color_index];
+                }
+            }
+
+            if (hit_door == 1) {
+                cur_distance += 0.7;
+                color = 'D';
+            }
+
+            double n_c = cur_distance * cos(ray_angle - cam_angle); // fish eye fix
+
+            int ceiling = (double)(scr_h / 2) - (scr_h / n_c);
+            int floorr = scr_h - ceiling;
 
             for (int i = 0; i < scr_h; i++) {
                 if (i <= ceiling)

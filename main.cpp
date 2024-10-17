@@ -289,17 +289,24 @@ int main()
     Map my_map = loadMapFromFile("MAP1.txt");
     Map my_map2 = loadMapFromFile("MAP2.txt");
 
-    Screen my_screen = Screen(30, 115);
-    Screen my_screen2 = Screen(30, 115);
-    Screen my_screen3 = Screen();
+    Screen* my_screen = new Screen(30, 115);
+    Screen* my_screen2 = new Screen(30, 115);
+    Screen* my_screen3 = new Screen();
 
-    Camera my_camera = Camera();
-    Camera my_camera2 = Camera();
+    Camera* my_camera = new Camera();
+    Camera* my_camera2 = new Camera();
 
-    //mainLoop(my_screen, my_map, my_camera);
-    //mainLoop2(my_screen, my_map, my_camera, my_screen2, my_map2, my_camera2);
+    //mainLoop(*my_screen, my_map, *my_camera);
+    //mainLoop2(*my_screen, my_map, *my_camera, *my_screen2, my_map2, *my_camera2);
 
-    mainLoop(my_screen3, my_map, my_camera);
+    mainLoop(*my_screen3, my_map, *my_camera);
+
+    delete my_screen;
+    delete my_screen2;
+    delete my_screen3;
+
+    delete my_camera;
+    delete my_camera2;
 
     return 0;
 }
