@@ -1,6 +1,6 @@
 #pragma once
-
 #include <iostream>
+
 #include <string>
 #include <vector>
 #include <fstream>
@@ -8,6 +8,10 @@
 #include <corecrt_math_defines.h>
 #include <cstdio>
 #include <cmath>
+#include <sstream>
+#include <memory>
+#include <limits>
+#include <stdexcept>
 
 //Coords: (screen, map, player)
 // +-------> x
@@ -53,7 +57,7 @@ public:
     // Adds new frame to sprite
     void addFrame(const std::vector<std::vector<char>>& frame) {
         if (frame.size() != m_sprite_height || frame[0].size() != m_sprite_width) {
-            throw std::invalid_argument("[error]: Sprite.AddFrame(): Frame dimensions do not match sprite dimensions.");
+            throw std::invalid_argument("[ERROR]: Sprite.AddFrame(): Frame dimensions do not match sprite dimensions.");
         }
         m_frames.push_back(frame);
     }
@@ -61,7 +65,7 @@ public:
     void saveSpriteToFile(const std::string& filename) const {
         std::ofstream file(filename);
         if (!file.is_open()) {
-            throw std::runtime_error("[error]: Sprite.saveSpriteToFile() Unable to open file for writing.");
+            throw std::runtime_error("[ERROR]: Sprite.saveSpriteToFile(): Unable to open file for writing.");
         }
 
         file << m_duration << '\n';
@@ -82,7 +86,7 @@ public:
     void loadFromFile(const std::string& filename) {
         std::ifstream file(filename);
         if (!file.is_open()) {
-            throw std::runtime_error("Unable to open file for reading.");
+            throw std::runtime_error("[ERROR]: Sprite.loadFromFile(): Unable to open file for reading.");
         }
 
         file >> m_duration;
@@ -122,38 +126,47 @@ protected:
     double m_x, m_y;
     int m_cur_sprite_frame;
 public:
-    Enemy(int hp, int x, int y) : m_health(hp), m_x(x), m_y(y) {
+    // Constructor
+    Enemy(int hp, double y, double x) : m_health(hp), m_x(x), m_y(y) {
         m_cur_sprite_frame = 0;
+    }
+    //
+    // Destructor
+    virtual ~Enemy() = default;
+    //
+    // Getters and setters
+    int getHealth() const {
+        return m_health;
+    }
+    double getX() const {
+        return m_x;
+    }
+    double getY() const {
+        return m_y;
     }
 
     virtual void attack() const {
         std::cout << "Enemy attacks!" << std::endl;
     }
 
-    virtual ~Enemy() = default;
+    
 };
-
 class Goblin : public Enemy {
 public:
-    Goblin(int x, int y) : Enemy(50, x, y) {}
+    Goblin(int hp, double x, double y) : Enemy(hp, x, y) {}
 
     void attack() const override {
         std::cout << "Goblin attacks with a club!" << std::endl;
     }
 };
-
 class Orc : public Enemy {
 public:
-    Orc(int x, int y) : Enemy(100, x, y) {}
+    Orc(int hp, double x, double y) : Enemy(hp, x, y) {}
 
     void attack() const override {
         std::cout << "Orc attacks with an axe!" << std::endl;
     }
 };
-
-
-
-
 
 // Player
 class Player {
@@ -359,7 +372,7 @@ private:
 	int m_map_width;
 	std::vector<std::vector<char>> obstacle;
     Player m_player;
-
+    std::vector<std::shared_ptr<Enemy>> m_enemies;
 public: 
 	// Default constructor
 	Map() : m_map_height(DEFAULT_MAP_HEIGHT), m_map_width(DEFAULT_MAP_WIDTH) {
@@ -383,18 +396,15 @@ public:
     int getMapHeight() const {
         return m_map_height;
     }
-
     int getMapWidth() const {
         return m_map_width;
     }
-
     // Set obstacle on pos (y, x)
     void setObstacle(int y, int x, char obstacleType) {
         if (y >= 0 && y < m_map_height && x >= 0 && x < m_map_width) {
             obstacle[y][x] = obstacleType;
         }
     }
-
     // Set obstacle on pos (y, x)
     char getObstacle(int y, int x) const {
         if (y >= 0 && y < m_map_height && x >= 0 && x < m_map_width) {
@@ -402,16 +412,21 @@ public:
         }
         return ' ';
     }
-
     Player& getPlayer() {
         return m_player;
     }
-
     Player getPlayer() const {
         return m_player;
     }
-
-    
+    //
+    // Add one enemy
+    void addEnemy(std::shared_ptr<Enemy> enemy) {
+        m_enemies.push_back(enemy);
+    }
+    //
+    const std::vector<std::shared_ptr<Enemy>>& getEnemies() const {
+        return m_enemies;
+    }
 };
 
 void processPlayerCollision(Map& map) {
@@ -510,7 +525,7 @@ public:
     // Draw text
     void drawText(const std::string& str, int y, int x) {
         if (y < 0 || y >= m_scr_height || x < 0 || x >= m_scr_width) {
-            std::cerr << "[ERROR]: drawText(): Starting position is out of screen bounds." << std::endl;
+            std::cerr << "[ERROR]: Screen.drawText(): Starting position is out of screen bounds." << std::endl;
             return;
         }
 
@@ -525,11 +540,11 @@ public:
     // Draws dot on the screen buffer
     void drawDot(int y, int x, char color) {
         if (x < 0 || x >= m_scr_width) {
-            std::cerr << "[ERROR]: drawDot(): wrong x" << std::endl;
+            std::cerr << "[ERROR]: Screen.drawDot(): wrong x" << std::endl;
             return;
         }
         if (y < 0 || y >= m_scr_height) {
-            std::cerr << "[ERROR]: drawDot(): wrong y" << std::endl;
+            std::cerr << "[ERROR]: Screen.drawDot(): wrong y" << std::endl;
             return;
         }
 
@@ -539,19 +554,19 @@ public:
     // Draws line with char color
     void drawLine(int x1, int y1, int x2, int y2, char color) {
         if (x1 < 0 || x1 >= m_scr_width) {
-            std::cerr << "[ERROR]: drawLine(): Wrong x1" << std::endl;
+            std::cerr << "[ERROR]: Screen.drawLine(): Wrong x1" << std::endl;
             return;
         }
         if (x2 < 0 || x2 >= m_scr_width) {
-            std::cerr << "[ERROR]: drawLine(): Wrong x2" << std::endl;
+            std::cerr << "[ERROR]: Screen.drawLine(): Wrong x2" << std::endl;
             return;
         }
         if (y1 < 0 || y1 >= m_scr_height) {
-            std::cerr << "[ERROR]: drawLine(): Wrong y1" << std::endl;
+            std::cerr << "[ERROR]: Screen.drawLine(): Wrong y1" << std::endl;
             return;
         }
         if (y2 < 0 || y2 >= m_scr_height) {
-            std::cerr << "[ERROR]: drawLine(): Wrong y2" << std::endl;
+            std::cerr << "[ERROR]: Screen.drawLine(): Wrong y2" << std::endl;
             return;
         }
 
@@ -603,19 +618,19 @@ public:
     // Draws rectangle
     void drawRect(int y1, int x1, int y2, int x2, char border_color, char fill_color) {
         if (x1 < 0 || x1 >= m_scr_width) {
-            std::cerr << "[ERROR]: drawRect(): Wrong x1" << std::endl;
+            std::cerr << "[ERROR]: Screen.drawRect(): Wrong x1" << std::endl;
             return;
         }
         if (x2 < 0 || x2 >= m_scr_width) {
-            std::cerr << "[ERROR]: drawRect(): Wrong x2" << std::endl;
+            std::cerr << "[ERROR]: Screen.drawRect(): Wrong x2" << std::endl;
             return;
         }
         if (y1 < 0 || y1 >= m_scr_height) {
-            std::cerr << "[ERROR]: drawRect(): Wrong y1" << std::endl;
+            std::cerr << "[ERROR]: Screen.drawRect(): Wrong y1" << std::endl;
             return;
         }
         if (y2 < 0 || y2 >= m_scr_height) {
-            std::cerr << "[ERROR]: drawRect(): Wrong y2" << std::endl;
+            std::cerr << "[ERROR]: Screen.drawRect(): Wrong y2" << std::endl;
             return;
         }
 
@@ -713,6 +728,46 @@ Map loadMapFromFile(const char* filename) {
         file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
     }
 
+    std::string type;
+    std::string line;
+    int enemy_health_file;
+    double enemy_x_file, enemy_y_file;
+
+    while (std::getline(file, type)) {
+        if (std::getline(file, line)) {
+            enemy_health_file = std::stod(line);
+        } else {
+            std::cerr << "[ERROR]: loadMapFromFile(): Failed to read enemy health for type: " << type << std::endl;
+            break;
+        }
+
+        if (std::getline(file, line)) {
+            enemy_y_file = std::stod(line);
+        }
+        else {
+            std::cerr << "[ERROR]: loadMapFromFile(): Failed to read enemy Y coordinate for type: " << type << std::endl;
+            break;
+        }
+
+        if (std::getline(file, line)) {
+            enemy_x_file = std::stod(line);
+        }
+        else {
+            std::cerr << "[ERROR]: loadMapFromFile(): Failed to read enemy X coordinate for type: " << type << std::endl;
+            break;
+        }
+
+        if (type == "Goblin") {
+            map_file.addEnemy(std::make_shared<Goblin>(enemy_health_file, enemy_y_file, enemy_x_file));
+        }
+        else if (type == "Orc") {
+            map_file.addEnemy(std::make_shared<Orc>(enemy_health_file, enemy_y_file, enemy_x_file));
+        }
+        else {
+            std::cerr << "[ERROR]: loadMapFromFile(): Unknown enemy type: " << type << std::endl;
+        }
+    }
+
     file.close();
 
     return map_file;
@@ -727,13 +782,13 @@ void saveMap(const char* filename, const Map& map) {
     }
     
     // Write player health
-    file << map.getPlayer().getPlayerHealth();
+    file << map.getPlayer().getPlayerHealth() << std::endl;
 
     // Write coords of the player
-    file << map.getPlayer().getPlayerY() << "\n" << map.getPlayer().getPlayerX() << "\n" << map.getPlayer().getPlayerAngle() << std::endl;
+    file << map.getPlayer().getPlayerY() << std::endl << map.getPlayer().getPlayerX() << std::endl << map.getPlayer().getPlayerAngle() << std::endl;
 
     // Write map dimensions
-    file << map.getMapHeight() << "\n" << map.getMapWidth() << std::endl;
+    file << map.getMapHeight() << std::endl << map.getMapWidth() << std::endl;
 
     // Write map's obstacles
     for (int i = 0; i < map.getMapHeight(); i++) {
@@ -742,6 +797,21 @@ void saveMap(const char* filename, const Map& map) {
             file << obstacle_type << ",";
         }
         file << std::endl;
+    }
+
+    for (const auto& enemy : map.getEnemies()) {
+        std::string enemy_type = typeid(*enemy).name(); // Nmae
+        if (enemy_type == typeid(Goblin).name()) {
+            enemy_type = "Goblin";
+        }
+        else if (enemy_type == typeid(Orc).name()) {
+            enemy_type = "Orc";
+        }
+
+        file << enemy_type << std::endl;
+        file << enemy->getHealth() << std::endl;
+        file << enemy->getY() << std::endl;
+        file << enemy->getX() << std::endl;
     }
 
     file.close();
@@ -1046,6 +1116,7 @@ void drawMap(Map& map, Camera& camera, Screen& screen) {
     // Draw the player
     screen.fDrawDot(MINI_MAP_HEIGHT / 2 + 1, MINI_MAP_WIDTH / 2 + 1, player_ch);
 }
+
 
 
 
