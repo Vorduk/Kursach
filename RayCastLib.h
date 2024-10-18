@@ -43,6 +43,7 @@
 #define MINI_MAP_HEIGHT 9
 
 
+
 // Sprite
 class Sprite {
 private:
@@ -51,9 +52,29 @@ private:
     int m_sprite_width;
     std::vector<std::vector<std::vector<char>>> m_frames;
 public:
+    Sprite() {
+        m_duration = 0;
+        m_sprite_height = 0;
+        m_sprite_width = 0;
+    }
     // Construuctor
     Sprite(int duration, int height, int width)
         : m_duration(duration), m_sprite_height(height), m_sprite_width(width) {}
+    //
+    // Getters and setters
+    int getDuration() const { return m_duration; }
+    void setDuration(int duration) { m_duration = duration; }
+    int getSpriteHeight() const { return m_sprite_height; }
+    void setSpriteHeight(int height) { m_sprite_height = height; }
+    int getSpriteWidth() const { return m_sprite_width; }
+    void setSpriteWidth(int width) { m_sprite_width = width; }
+    const std::vector<std::vector<char>>& getFrames(int frameIndex) const {
+        if (frameIndex < 0 || frameIndex >= m_frames.size()) {
+            std::cerr << "[ERROR]: Sprite.getFrames(): Frame index out of range" << std::endl;
+        }
+        return m_frames[frameIndex];
+    }
+    //
     // Adds new frame to sprite
     void addFrame(const std::vector<std::vector<char>>& frame) {
         if (frame.size() != m_sprite_height || frame[0].size() != m_sprite_width) {
@@ -82,7 +103,8 @@ public:
             }
         }
     }
-    // Load sprite from .txt file by name
+    //
+    // Load from file
     void loadFromFile(const std::string& filename) {
         std::ifstream file(filename);
         if (!file.is_open()) {
@@ -92,31 +114,26 @@ public:
         file >> m_duration;
         file >> m_sprite_height;
         file >> m_sprite_width;
-        file.ignore(std::numeric_limits<std::streamsize>::max(), '\n'); // skip 0
-
-        m_frames.clear();
+        file.ignore(std::numeric_limits<std::streamsize>::max(), '\n'); // skip 0 m_frames.clear();
         std::string line;
 
+        int c = 1;
         while (std::getline(file, line)) {
-            if (line.empty() || std::isdigit(line[0])) {
-                continue; // skip frame number
-
+            if (c % m_sprite_width != 0) {
                 std::vector<std::vector<char>> frame;
                 for (int i = 0; i < m_sprite_height; ++i) {
-                    std::vector<char> row;
-                    if (i > 0) {
-                        std::getline(file, line);
-                    }
-                    for (char c : line) {
-                        row.push_back(c);
-                    }
+                    std::getline(file, line);
+                    std::vector<char> row(line.begin(), line.end()); // создаем строку из символов
                     frame.push_back(row);
                 }
-                m_frames.push_back(frame);
+                addFrame(frame);
             }
+            else {
+                continue;
+            }
+            c++;
         }
     }
-
 };
 
 // Enemy
@@ -165,6 +182,68 @@ public:
 
     void attack() const override {
         std::cout << "Orc attacks with an axe!" << std::endl;
+    }
+};
+
+// Gun
+class Gun {
+protected:
+    int m_damage;
+    Sprite m_gun_sprite;
+    int area;
+
+public:
+    Gun() : m_damage(0), area(0) {}
+
+    Gun(int damage, const Sprite& gun_sprite, int area)
+        : m_damage(damage), m_gun_sprite(gun_sprite), area(area) {}
+
+    ~Gun() {}
+
+    void setDamage(int damage) {
+        m_damage = damage;
+    }
+    int getDamage() const {
+        return m_damage;
+    }
+    void setGunSprite(const Sprite& gun_sprite) {
+        m_gun_sprite = gun_sprite;
+    }
+    Sprite getGunSprite() const {
+        return m_gun_sprite;
+    }
+    void setArea(int area_value) {
+        area = area_value;
+    }
+    int getArea() const {
+        return area;
+    }
+};
+
+// Item
+class Item {
+protected:
+    double m_item_x;
+    double m_item_y;
+
+public:
+    Item() : m_item_x(0.0), m_item_y(0.0) {}
+
+    Item(double x, double y) : m_item_x(x), m_item_y(y) {}
+
+    ~Item() {}
+
+    void setItemX(double x) {
+        m_item_x = x;
+    }
+    double getItemX() const {
+        return m_item_x;
+    }
+    void setItemY(double y) {
+        m_item_y = y;
+    }
+    double getItemY() const {
+        return m_item_y;
     }
 };
 
@@ -672,6 +751,32 @@ public:
     char fGetDot(int y, int x) {
         return (m_screen[y][x]);
     }
+    //
+    // Draws sprite with mask
+    void drawSprite(int y, int x, int is_centered, int frame, Sprite& sprite, Screen& screen) {
+        int spr_h = sprite.getSpriteHeight();
+        int spr_w = sprite.getSpriteWidth();
+        const auto& currentFrame = sprite.getFrames(frame);
+
+        if (is_centered == 1) {
+            y -= spr_h / 2;
+            x -= spr_w / 2;
+        }
+
+        // Проверяем границы экрана
+        for (int i = 0; i < spr_h; ++i) {
+            for (int j = 0; j < spr_w; ++j) {
+                int screenY = y + i;
+                int screenX = x + j;
+
+                if (screenY >= 0 && screenY < screen.m_scr_height && screenX >= 0 && screenX < screen.m_scr_width) {
+                    if (currentFrame[i][j] != ' ') {
+                        screen.m_screen[screenY][screenX] = currentFrame[i][j];
+                    }
+                }
+            }
+        }
+    }
 };
 
 // Load map from file by path
@@ -834,6 +939,8 @@ void renderDDA(Map& map, Camera& camera, Screen& screen) {
     int gridSizeX = map.getMapWidth();
     int gridSizeY = map.getMapHeight();
 
+    double prev_distance;
+
     for (int column = 0; column < rays_n; column++) {
         int is_corner = 0;
 
@@ -908,13 +1015,13 @@ void renderDDA(Map& map, Camera& camera, Screen& screen) {
                     hit_door = 1;
                     break;
                 }
-                else if (check == '3') {
+                else if (check == '3') {  //lava
                     int floor_size = 1; double n_c = cur_distance * cos(ray_angle - cam_angle);
                     int ceiling = (double)(scr_h / 2) - (scr_h / n_c);
                     int floorr = scr_h - ceiling;
                     for (int i = floorr - floor_size; i <= floorr; i++) {
                         for (int j = column - floor_size; j <= column + floor_size; j++) {
-                            screen.ffDrawDot(i, j, '#'); // fill the square with '#' characters
+                            screen.ffDrawDot(i, j, '#'); //lava
                         }
                     }
                 }
@@ -922,6 +1029,7 @@ void renderDDA(Map& map, Camera& camera, Screen& screen) {
             }
         }
 
+        prev_distance = cur_distance;
         if (hit == 1 || hit_door == 1) {
 
 
@@ -964,96 +1072,24 @@ void renderDDA(Map& map, Camera& camera, Screen& screen) {
                 }
             }
         }
+
+        for (const auto& enemy : map.getEnemies()) {
+            std::string enemy_type = typeid(*enemy).name(); // Nmae
+            if (enemy_type == typeid(Goblin).name()) {
+                enemy_type = "Goblin";
+            }
+            else if (enemy_type == typeid(Orc).name()) {
+                enemy_type = "Orc";
+            }
+
+            double ey = enemy->getY();
+            double ex = enemy->getX();
+            
+
+            // todo: enemy render
+        }
     }
 
-}
-
-// Render scene
-void render(Map& map, Camera& camera, Screen& screen) {
-    char gradient[9] = { '.',':',';','=','+','x','X','$','@' }; // gradient for walls
-
-    int rays_n = screen.getScrWidth();
-    int scr_h = screen.getScrHeight();
-
-    double cam_angle = camera.getCameraAngle();
-    double cam_fov = camera.getFov();
-    double cam_x = camera.getCameraX();
-    double cam_y = camera.getCameraY();
-    double render_distance = camera.getRenderDistance();
-
-    int gridSizeX = map.getMapWidth();
-    int gridSizeY = map.getMapHeight();
-
-    for (int column = 0; column < rays_n; column++) {
-
-        int hit_h = 0;
-        int hit_a = 0;
-
-        // Column ray angle
-        double ray_angle = cam_angle - (cam_fov / 2) + ((column * cam_fov) / rays_n);;
-
-        double ray_x = cos(ray_angle);
-        double ray_y = sin(ray_angle);
-
-        // flags
-        int hit = 0; // ray hits wall
-        int is_corner = 0;
-
-        double cur_distance = 0;
-        for (cur_distance; cur_distance <= render_distance; cur_distance += 0.05) {
-            double dot_x = cam_x + cur_distance * ray_x;
-            double dot_y = cam_y + cur_distance * ray_y;
-
-            int grid_x = (int)dot_x;
-            int grid_y = (int)dot_y;
-
-
-            // if ray hits wall
-            if (map.getObstacle(grid_y, grid_x) == '1') {
-                hit = 1;
-                if ((fabs(dot_x - round(dot_x)) < 0.05) && (fabs(dot_y - round(dot_y)) < 0.05)) {
-                    is_corner = 1;
-                }
-                break;
-            }
-        }
-
-        if (hit == 1) {
-            double n_c = cur_distance * cos(ray_angle - cam_angle); // fish eye fix
-
-            int ceiling = (double)(scr_h / 2) - (scr_h / n_c);
-            int floorr = scr_h - ceiling;
-
-            char color; // color of wall
-            int grad_size = sizeof(gradient);
-            if (int(cur_distance) >= grad_size) {
-                color = gradient[0];
-            }
-            else {
-                int color_index = int((grad_size - cur_distance));
-                color = gradient[color_index];
-            }
-
-            // Corners of the wall blocks
-            if (is_corner == 1) {
-                color = '|';
-            }
-
-            for (int i = 0; i < scr_h; i++) {
-                if (i <= ceiling)
-                {
-                    screen.fDrawDot(i, column, ' ');
-                }
-                if (i > ceiling && i <= floorr) {
-                    screen.fDrawDot(i, column, color);
-                }
-                if (i > floorr) {
-                    screen.fDrawDot(i, column, ' ');
-                }
-            }
-        }
-   
-    }
 }
 
 // Drawing map
