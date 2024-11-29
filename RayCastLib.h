@@ -42,7 +42,7 @@
 #define MINI_MAP_WIDTH 17
 #define MINI_MAP_HEIGHT 9
 
-
+#define FIRST_AID_HP 15
 
 // Sprite
 class Sprite {
@@ -68,9 +68,9 @@ public:
     void setSpriteHeight(int height) { m_sprite_height = height; }
     int getSpriteWidth() const { return m_sprite_width; }
     void setSpriteWidth(int width) { m_sprite_width = width; }
-    const std::vector<std::vector<char>>& getFrames(int frameIndex) const {
+    const std::vector<std::vector<char>>& getFrame(int frameIndex) const {
         if (frameIndex < 0 || frameIndex >= m_frames.size()) {
-            std::cerr << "[ERROR]: Sprite.getFrames(): Frame index out of range" << std::endl;
+            std::cerr << "[ERROR]: Sprite.getFrame(): Frame index out of range" << std::endl;
         }
         return m_frames[frameIndex];
     }
@@ -78,7 +78,7 @@ public:
     // Adds new frame to sprite
     void addFrame(const std::vector<std::vector<char>>& frame) {
         if (frame.size() != m_sprite_height || frame[0].size() != m_sprite_width) {
-            throw std::invalid_argument("[ERROR]: Sprite.AddFrame(): Frame dimensions do not match sprite dimensions.");
+            std::cerr << "[ERROR]: Sprite.AddFrame(): Frame dimensions do not match sprite dimensions." << std::endl;
         }
         m_frames.push_back(frame);
     }
@@ -134,6 +134,120 @@ public:
             c++;
         }
     }
+    
+    // Lab5
+    // Можно получать доступ к кадру с помощью []
+    const std::vector<std::vector<char>>& operator[](size_t index) const {
+        return m_frames[index];
+    }
+    // Пергрузка + чтобы прибавлять кадры к спрайту
+    Sprite operator+(const std::vector<std::vector<char>>& newFrame) {
+        if (newFrame.size() != m_sprite_height || newFrame[0].size() != m_sprite_width) {
+            std::cerr << "[ERROR]: Sprite.operator+: New frame dimensions do not match sprite dimensions." << std::endl;
+        }
+
+        // Создание нового спрайта с увеличенной длительностью
+        Sprite newSprite = *this; // Копия текщего
+        newSprite.m_duration += 1; // Увеличение длительности
+        newSprite.addFrame(newFrame); // Добавление нового кадра
+
+        return newSprite;
+    }
+
+};
+class Sprite2 {
+private:
+    int m_duration;
+    int m_sprite_height;
+    int m_sprite_width;
+    std::vector<std::vector<std::string>> m_frames;
+public:
+    Sprite2() {
+        m_duration = 0;
+        m_sprite_height = 0;
+        m_sprite_width = 0;
+    }
+    Sprite2(int duration, int height, int width)
+        : m_duration(duration), m_sprite_height(height), m_sprite_width(width) {}
+    // Copy constructor
+    Sprite2(const Sprite2& other)
+        : m_duration(other.m_duration),
+        m_sprite_height(other.m_sprite_height),
+        m_sprite_width(other.m_sprite_width),
+        m_frames(other.m_frames) {}
+    //
+    // Getters and setters
+    int getDuration() const { return m_duration; }
+    void setDuration(int duration) { m_duration = duration; }
+    int getSpriteHeight() const { return m_sprite_height; }
+    void setSpriteHeight(int height) { m_sprite_height = height; }
+    int getSpriteWidth() const { return m_sprite_width; }
+    void setSpriteWidth(int width) { m_sprite_width = width; }
+    const std::vector<std::string>& getFrame(int frameIndex) const
+    {
+        if (frameIndex < 0 || frameIndex >= m_frames.size()) {
+            std::cerr << "[ERROR]: Sprite2.getFrame(): Frame index out of range" << std::endl;
+            return m_frames[0];
+        }
+        return m_frames[frameIndex];
+    }
+    //
+    // Adds new frame to sprite
+    void addFrame(std::vector<std::string>& frame)
+    {
+        if (frame.size() != m_sprite_height || frame[0].length() != m_sprite_width)
+        {
+            std::cerr << "[ERROR]: Sprite2.AddFrame(): Frame dimensions do not match sprite dimensions." << std::endl;
+            return;
+        }
+        m_frames.push_back(frame);
+    }
+    // Save sprite to .txt file by name
+    void saveSpriteToFile(const std::string& filename) const {
+        std::ofstream file(filename);
+        if (!file.is_open()) {
+            throw std::runtime_error("[ERROR]: Sprite2.saveSpriteToFile(): Unable to open file for writing.");
+        }
+
+        file << m_duration << '\n';
+        file << m_sprite_height << '\n';
+        file << m_sprite_width << '\n';
+
+        for (size_t i = 0; i < m_frames.size(); ++i) {
+            file << i << '\n'; // frame number between frames
+            for (const auto& row : m_frames[i]) {
+                file << row;
+                file << '\n';
+            }
+        }
+    }
+    //
+    // Load from file
+    void loadFromFile(const std::string& filename) {
+        std::ifstream file(filename);
+        if (!file.is_open()) {
+            throw std::runtime_error("[ERROR]: Sprite2.loadFromFile(): Unable to open file for reading.");
+        }
+
+        file >> m_duration;
+        file >> m_sprite_height;
+        file >> m_sprite_width;
+        file.ignore(std::numeric_limits<std::streamsize>::max(), '\n'); // skip 0 m_frames.clear();
+        std::string line;
+
+        int c = 5;
+        while (std::getline(file, line)) {
+            if (c % (m_sprite_width+1) != 0) {
+                std::vector<std::string> frame;
+                for (int i = 0; i < m_sprite_height; ++i) {
+                    std::getline(file, line);
+                    frame.push_back(line);
+                }
+                addFrame(frame);
+            }
+            c++;
+        }
+    }
 };
 
 // Enemy
@@ -142,16 +256,30 @@ protected:
     int m_health;
     double m_x, m_y;
     int m_cur_sprite_frame;
+
+    // Lab 5
+    static int enemyCount;
 public:
     // Constructor
     Enemy(int hp, double y, double x) : m_health(hp), m_x(x), m_y(y) {
         m_cur_sprite_frame = 0;
+
+        // Lab 5
+        enemyCount++;
     }
     //
     // Destructor
-    virtual ~Enemy() = default;
+    virtual ~Enemy() 
+    {
+        // Lab 5
+        enemyCount--;
+    };
     //
     // Getters and setters
+    // Lab 5
+    static int getEnemyCount() {
+        return enemyCount;
+    }
     int getHealth() const {
         return m_health;
     }
@@ -165,9 +293,8 @@ public:
     virtual void attack() const {
         std::cout << "Enemy attacks!" << std::endl;
     }
-
-    
 };
+int Enemy::enemyCount = 0;
 class Goblin : public Enemy {
 public:
     Goblin(int hp, double x, double y) : Enemy(hp, x, y) {}
@@ -185,21 +312,74 @@ public:
     }
 };
 
+// Item (items)
+class Item {
+protected:
+    double m_item_x;
+    double m_item_y;
+    unsigned int m_amount;
+    unsigned int m_max; // max in inventory cell
+public:
+    // Constructors
+    Item() : m_item_x(0.0), m_item_y(0.0), m_amount(1), m_max(64) {}
+    Item(double x, double y, unsigned int amount, unsigned int max) : m_item_x(x), m_item_y(y) {
+        setAmount(amount);
+    }
+
+    // Copy constructor
+    Item(const Item& other)
+        : m_item_x(other.m_item_x), m_item_y(other.m_item_y), m_amount(other.m_amount), m_max(other.m_max) {}
+
+    // Virtual destructor
+    virtual ~Item() {}
+
+    // Getters and setters
+    void setItemX(double x) {
+        m_item_x = x;
+    }
+    double getItemX() const {
+        return m_item_x;
+    }
+    void setItemY(double y) {
+        m_item_y = y;
+    }
+    double getItemY() const {
+        return m_item_y;
+    }
+    unsigned int getAmount() const {
+        return m_amount;
+    }
+    void setAmount(int amount) {
+        if (amount <= 0)
+        {
+            delete this;
+        }
+        else m_amount = amount;
+    }
+    unsigned int getMax() const {
+        return m_max;
+    }
+
+    virtual std::string getType() const = 0;
+    virtual bool isFinal() const { return false; }
+};
 // Gun
-class Gun {
+class Gun : public Item {
 protected:
     int m_damage;
     Sprite m_gun_sprite;
     int area;
 
 public:
-    Gun() : m_damage(0), area(0) {}
+    // Constructors
+    Gun() : Item(), m_damage(0), area(0) {}
+    Gun(double x, double y, unsigned int amount, int damage, const Sprite& gun_sprite, int area)
+        : Item(x, y, amount, 1), m_damage(damage), m_gun_sprite(gun_sprite), area(area) {}
 
-    Gun(int damage, const Sprite& gun_sprite, int area)
-        : m_damage(damage), m_gun_sprite(gun_sprite), area(area) {}
+    // Virtual destructor
+    virtual ~Gun() {}
 
-    ~Gun() {}
-
+    // Getters and setters
     void setDamage(int damage) {
         m_damage = damage;
     }
@@ -218,39 +398,200 @@ public:
     int getArea() const {
         return area;
     }
-};
 
-// Item
-class Item {
+    std::string getType() const override {
+        return "Gun";
+    }
+    virtual bool isFinal() const { return false; }
+};
+// Guns variants
+class Pistol : public Gun {
+public:
+    Pistol() : Gun() {}
+    Pistol(double x, double y, unsigned int amount, int damage, const Sprite& gun_sprite, int area)
+        : Gun(x, y, amount, damage, gun_sprite, area) {}
+
+    std::string getType() const override {
+        return "Pistol";
+    }
+    virtual bool isFinal() const { return true; }
+};
+class Rifle : public Gun {
+public:
+    Rifle() : Gun() {}
+    Rifle(double x, double y, unsigned int amount, int damage, const Sprite& gun_sprite, int area)
+        : Gun(x, y, amount, damage, gun_sprite, area) {}
+
+    std::string getType() const override {
+        return "Rifle";
+    }
+    virtual bool isFinal() const { return true; }
+};
+// Armor
+class Armor : public Item {
 protected:
-    double m_item_x;
-    double m_item_y;
+    int m_defense;
 
 public:
-    Item() : m_item_x(0.0), m_item_y(0.0) {}
+    // Constructors
+    Armor() : Item(), m_defense(0) {}
+    Armor(double x, double y, unsigned int amount, int defense)
+        : Item(x, y, amount, 10), m_defense(defense) {}
 
-    Item(double x, double y) : m_item_x(x), m_item_y(y) {}
+    // Virtual destructor
+    virtual ~Armor() {}
 
-    ~Item() {}
+    void setDefense(int defense) {
+        m_defense = defense;
+    }
+    int getDefense() const {
+        return m_defense;
+    }
 
-    void setItemX(double x) {
-        m_item_x = x;
+    std::string getType() const override {
+        return "Armor";
     }
-    double getItemX() const {
-        return m_item_x;
+    virtual bool isFinal() const { return true; }
+};
+// First Aid Kit
+class FirstAidKit : public Item {
+public:
+    FirstAidKit() : Item() {}
+    FirstAidKit(double x, double y, unsigned int amount) : Item(x, y, amount, 64) {}
+
+    std::string getType() const override {
+        return "FirstAidKit";
     }
-    void setItemY(double y) {
-        m_item_y = y;
+    virtual bool isFinal() const { return true; }
+};
+class Ammo : public Item {
+public:
+    Ammo() : Item() {}
+    Ammo(double x, double y, unsigned int amount) : Item(x, y, amount, 500) {}
+
+    std::string getType() const override {
+        return "Ammo";
     }
-    double getItemY() const {
-        return m_item_y;
+    virtual bool isFinal() const { return true; }
+};
+
+// Inventory Cell
+class InventoryCell {
+private:
+    Item* m_item; // Item ptr
+    Sprite m_cell_sprite; // Cell sprite
+    bool m_is_rendered; // is cell rendered
+    Sprite m_cell_item_sprite; // Cell sprite
+public:
+    InventoryCell(const Sprite& sprite) : m_item(nullptr), m_cell_sprite(sprite), m_is_rendered(false)
+    {
+
+    }
+
+    // Getters and setters
+    void setItem(Item* item) {
+        if (item->isFinal()) {
+            m_item = item;
+        }
+    }
+    Item* getItem() const {
+        return m_item;
+    }
+    void setCellSprite(const Sprite& sprite) {
+        m_cell_sprite = sprite;
+    }
+    Sprite getCellSprite() const {
+        return m_cell_sprite;
+    }
+    void setCellItemSprite(const Sprite& sprite)
+    {
+        m_cell_item_sprite = sprite;
+    }
+    Sprite getCellItemSprite() const {
+        return m_cell_item_sprite;
+    }
+    bool isRendered() const {
+        return m_is_rendered;
+    }
+    void setRendered(bool rendered) {
+        m_is_rendered = rendered;
+    }
+    void addItem(Item* added_item)
+    {
+        // if same item type or not final children
+        if (!(added_item->getType() == m_item->getType()) || !added_item->isFinal()) {
+            return;
+        }
+
+        // determine amount of both items
+        if (m_item != nullptr) {
+            int max = m_item->getMax();
+            int current_amount = m_item->getAmount();
+            int added_item_amount = added_item->getAmount();
+
+            if (max > current_amount) {
+                m_item->setAmount(current_amount + abs(added_item_amount-(max - current_amount)));
+                added_item->setAmount(added_item_amount - abs(added_item_amount - (max - current_amount)));
+            }
+        }
+        else {
+            m_item = added_item;
+        }
+    }
+};
+
+// Inventory
+class Inventory {
+private:
+    int m_rows;
+    int m_columns;
+    std::vector<std::vector<InventoryCell>> m_cells;
+    int m_currentCell;
+
+public:
+    // Constructor
+    Inventory(int rows, int columns, const Sprite& cellSprite)
+        : m_rows(rows), m_columns(columns), m_currentCell(0) {
+        m_cells.resize(rows, std::vector<InventoryCell>(columns, InventoryCell(cellSprite)));
+    }
+
+    void setCurrentCell(int index) {
+        if (index >= 0 && index < m_rows * m_columns) {
+            m_currentCell = index;
+        }
+    }
+    int getCurrentCell() const {
+        return m_currentCell;
+    }
+    void addItem(Item* item, int row, int column) {
+        if (row >= 0 && row < m_rows && column >= 0 && column < m_columns) {
+            m_cells[row][column].setItem(item);
+        }
+    }
+
+    // Метод для объединения ячеек в один большой спрайт
+    Sprite combineCellsToSprite() {
+        Sprite combinedSprite;
+        // Логика объединения спрайтов ячеек в один спрайт
+        // Примерно так:
+        for (int row = 0; row < m_rows; ++row) {
+            for (int col = 0; col < m_columns; ++col) {
+                Item* item = m_cells[row][col].getItem();
+                if (item) {
+                    Sprite cellSprite = m_cells[row][col].getCellSprite();
+                    // Добавляем спрайт ячейки к объединенному спрайту
+                    combinedSprite.addFrame(cellSprite.getFrame(0)); // Пример, добавляем только первый кадр
+                }
+            }
+        }
+        return combinedSprite;
     }
 };
 
 // Player
 class Player {
 private:
-    int m_player_health;
+    unsigned int m_player_health;
     double m_player_prev_y;
     double m_player_prev_x;
     double m_player_y;
@@ -286,7 +627,7 @@ public:
     void setPlayerHealth(int player_health) {
         m_player_health = player_health;
     }
-    int getPlayerHealth() {
+    unsigned int getPlayerHealth() const {
         return m_player_health;
     }
     void setPlayerCoords(double player_y, double player_x) {
@@ -354,9 +695,29 @@ public:
     //
     // Applay damage to player
     void applyDamage(int damage) {
-        m_player_health -= damage;
+        if (m_player_health != 0) m_player_health -= damage;
     }
+
+
+    //Lab 5
+    unsigned int* getPlayerHealthPtr()
+    {
+        return &m_player_health;
+    }
+    unsigned int& getPlayerHealthRef()
+    {
+        return m_player_health;
+    }
+    // "Сложить" игрока с аптечкой, прибавить аптечку к здоровью
+    friend Player operator+ (const Player& player, const FirstAidKit& kit);
 };
+
+Player operator+ (const Player& player, const FirstAidKit& kit) 
+{
+    Player newPlayer = player;
+    newPlayer.setPlayerHealth(newPlayer.getPlayerHealth() + (kit.getAmount()*FIRST_AID_HP));
+    return newPlayer;
+}
 
 // Camera
 class Camera {
@@ -756,7 +1117,7 @@ public:
     void drawSprite(int y, int x, int is_centered, int frame, Sprite& sprite, Screen& screen) {
         int spr_h = sprite.getSpriteHeight();
         int spr_w = sprite.getSpriteWidth();
-        const auto& currentFrame = sprite.getFrames(frame);
+        const auto& currentFrame = sprite.getFrame(frame);
 
         if (is_centered == 1) {
             y -= spr_h / 2;
@@ -841,7 +1202,8 @@ Map loadMapFromFile(const char* filename) {
     while (std::getline(file, type)) {
         if (std::getline(file, line)) {
             enemy_health_file = std::stod(line);
-        } else {
+        }
+        else {
             std::cerr << "[ERROR]: loadMapFromFile(): Failed to read enemy health for type: " << type << std::endl;
             break;
         }
