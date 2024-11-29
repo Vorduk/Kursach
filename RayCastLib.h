@@ -319,10 +319,13 @@ protected:
     double m_item_y;
     unsigned int m_amount;
     unsigned int m_max; // max in inventory cell
+    Sprite m_cell_item_sprite;
+    Sprite m_item_sprite;
 public:
     // Constructors
     Item() : m_item_x(0.0), m_item_y(0.0), m_amount(1), m_max(64) {}
-    Item(double x, double y, unsigned int amount, unsigned int max) : m_item_x(x), m_item_y(y) {
+    Item(double x, double y, unsigned int amount, unsigned int max, const Sprite& cell_item_sprite, const Sprite& item_sprite) 
+        : m_item_x(x), m_item_y(y), m_amount(amount), m_max(max), m_cell_item_sprite(cell_item_sprite), m_item_sprite(item_sprite) {
         setAmount(amount);
     }
 
@@ -359,22 +362,27 @@ public:
     unsigned int getMax() const {
         return m_max;
     }
+    void setItemSprite(const Sprite& sprite)
+    {
+        m_item_sprite = sprite;
+    }
+    Sprite getItemSprite() const {
+        return m_item_sprite;
+    }
 
     virtual std::string getType() const = 0;
+
     virtual bool isFinal() const { return false; }
 };
 // Gun
 class Gun : public Item {
 protected:
     int m_damage;
-    Sprite m_gun_sprite;
     int area;
-
 public:
-    // Constructors
-    Gun() : Item(), m_damage(0), area(0) {}
-    Gun(double x, double y, unsigned int amount, int damage, const Sprite& gun_sprite, int area)
-        : Item(x, y, amount, 1), m_damage(damage), m_gun_sprite(gun_sprite), area(area) {}
+    // Constructor
+    Gun(double x, double y, unsigned int amount, const Sprite& gun_cell_sprite, const Sprite& gun_sprite, int damage, int area)
+        : Item(x, y, amount, 1, gun_cell_sprite, gun_sprite), m_damage(damage), area(area) {}
 
     // Virtual destructor
     virtual ~Gun() {}
@@ -386,12 +394,6 @@ public:
     int getDamage() const {
         return m_damage;
     }
-    void setGunSprite(const Sprite& gun_sprite) {
-        m_gun_sprite = gun_sprite;
-    }
-    Sprite getGunSprite() const {
-        return m_gun_sprite;
-    }
     void setArea(int area_value) {
         area = area_value;
     }
@@ -402,14 +404,14 @@ public:
     std::string getType() const override {
         return "Gun";
     }
+
     virtual bool isFinal() const { return false; }
 };
 // Guns variants
 class Pistol : public Gun {
 public:
-    Pistol() : Gun() {}
-    Pistol(double x, double y, unsigned int amount, int damage, const Sprite& gun_sprite, int area)
-        : Gun(x, y, amount, damage, gun_sprite, area) {}
+    Pistol(double x, double y, unsigned int amount, const Sprite& pistol_cell_sprite, const Sprite& pistol_sprite, int damage = 30, int area = 0)
+        : Gun(x, y, amount, pistol_cell_sprite, pistol_sprite, damage, area) {}
 
     std::string getType() const override {
         return "Pistol";
@@ -418,9 +420,8 @@ public:
 };
 class Rifle : public Gun {
 public:
-    Rifle() : Gun() {}
-    Rifle(double x, double y, unsigned int amount, int damage, const Sprite& gun_sprite, int area)
-        : Gun(x, y, amount, damage, gun_sprite, area) {}
+    Rifle(double x, double y, unsigned int amount, const Sprite& riflel_cell_sprite, const Sprite& rifle_sprite, int damage = 50, int area = 0)
+        : Gun(x, y, amount, riflel_cell_sprite, rifle_sprite, damage, area) {}
 
     std::string getType() const override {
         return "Rifle";
@@ -433,10 +434,9 @@ protected:
     int m_defense;
 
 public:
-    // Constructors
-    Armor() : Item(), m_defense(0) {}
-    Armor(double x, double y, unsigned int amount, int defense)
-        : Item(x, y, amount, 10), m_defense(defense) {}
+    // Constructor
+    Armor(double x, double y, unsigned int amount, const Sprite& armor_cell_sprite, const Sprite& armor_sprite, int defense)
+        : Item(x, y, amount, 1, armor_cell_sprite, armor_sprite), m_defense(defense) {}
 
     // Virtual destructor
     virtual ~Armor() {}
@@ -455,9 +455,15 @@ public:
 };
 // First Aid Kit
 class FirstAidKit : public Item {
+protected:
+    int m_heal;
 public:
-    FirstAidKit() : Item() {}
-    FirstAidKit(double x, double y, unsigned int amount) : Item(x, y, amount, 64) {}
+    FirstAidKit(double x, double y, unsigned int amount, const Sprite& first_aid_kit_cell_sprite, const Sprite& first_aid_kit_sprite, int heal)
+        : Item(x, y, amount, 10, first_aid_kit_cell_sprite, first_aid_kit_sprite), m_heal(heal) {}
+
+    int getHeal() const {
+        return m_heal;
+    }
 
     std::string getType() const override {
         return "FirstAidKit";
@@ -465,9 +471,15 @@ public:
     virtual bool isFinal() const { return true; }
 };
 class Ammo : public Item {
+protected:
+    int m_one_box_amount;
 public:
-    Ammo() : Item() {}
-    Ammo(double x, double y, unsigned int amount) : Item(x, y, amount, 500) {}
+    Ammo(double x, double y, unsigned int amount, const Sprite& ammo_cell_sprite, const Sprite& ammo_sprite, int one_box_amount)
+        : Item(x, y, amount, 10, ammo_cell_sprite, ammo_sprite), m_one_box_amount(one_box_amount) {}
+
+    int getOneBoxAmount() const {
+        return m_one_box_amount;
+    }
 
     std::string getType() const override {
         return "Ammo";
@@ -491,7 +503,8 @@ public:
     // Getters and setters
     void setItem(Item* item) {
         if (item->isFinal()) {
-            m_item = item;
+            
+            
         }
     }
     Item* getItem() const {
@@ -569,7 +582,6 @@ public:
         }
     }
 
-    // ћетод дл€ объединени€ €чеек в один большой спрайт
     Sprite combineCellsToSprite() {
         Sprite combinedSprite;
         // Ћогика объединени€ спрайтов €чеек в один спрайт
