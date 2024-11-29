@@ -331,7 +331,7 @@ public:
 
     // Copy constructor
     Item(const Item& other)
-        : m_item_x(other.m_item_x), m_item_y(other.m_item_y), m_amount(other.m_amount), m_max(other.m_max) {}
+        : m_item_x(other.m_item_x), m_item_y(other.m_item_y), m_amount(other.m_amount), m_max(other.m_max), m_cell_item_sprite(other.m_cell_item_sprite), m_item_sprite(other.m_item_sprite) {}
 
     // Virtual destructor
     virtual ~Item() {}
@@ -361,6 +361,13 @@ public:
     }
     unsigned int getMax() const {
         return m_max;
+    }
+    void setCellItemSprite(const Sprite& sprite)
+    {
+        m_cell_item_sprite = sprite;
+    }
+    Sprite getCellItemSprite() const {
+        return m_cell_item_sprite;
     }
     void setItemSprite(const Sprite& sprite)
     {
@@ -503,8 +510,8 @@ public:
     // Getters and setters
     void setItem(Item* item) {
         if (item->isFinal()) {
-            
-            
+            m_cell_item_sprite = item->getCellItemSprite();
+            m_item = item;
         }
     }
     Item* getItem() const {
