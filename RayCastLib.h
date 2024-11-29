@@ -155,100 +155,6 @@ public:
     }
 
 };
-class Sprite2 {
-private:
-    int m_duration;
-    int m_sprite_height;
-    int m_sprite_width;
-    std::vector<std::vector<std::string>> m_frames;
-public:
-    Sprite2() {
-        m_duration = 0;
-        m_sprite_height = 0;
-        m_sprite_width = 0;
-    }
-    Sprite2(int duration, int height, int width)
-        : m_duration(duration), m_sprite_height(height), m_sprite_width(width) {}
-    // Copy constructor
-    Sprite2(const Sprite2& other)
-        : m_duration(other.m_duration),
-        m_sprite_height(other.m_sprite_height),
-        m_sprite_width(other.m_sprite_width),
-        m_frames(other.m_frames) {}
-    //
-    // Getters and setters
-    int getDuration() const { return m_duration; }
-    void setDuration(int duration) { m_duration = duration; }
-    int getSpriteHeight() const { return m_sprite_height; }
-    void setSpriteHeight(int height) { m_sprite_height = height; }
-    int getSpriteWidth() const { return m_sprite_width; }
-    void setSpriteWidth(int width) { m_sprite_width = width; }
-    const std::vector<std::string>& getFrame(int frameIndex) const
-    {
-        if (frameIndex < 0 || frameIndex >= m_frames.size()) {
-            std::cerr << "[ERROR]: Sprite2.getFrame(): Frame index out of range" << std::endl;
-            return m_frames[0];
-        }
-        return m_frames[frameIndex];
-    }
-    //
-    // Adds new frame to sprite
-    void addFrame(std::vector<std::string>& frame)
-    {
-        if (frame.size() != m_sprite_height || frame[0].length() != m_sprite_width)
-        {
-            std::cerr << "[ERROR]: Sprite2.AddFrame(): Frame dimensions do not match sprite dimensions." << std::endl;
-            return;
-        }
-        m_frames.push_back(frame);
-    }
-    // Save sprite to .txt file by name
-    void saveSpriteToFile(const std::string& filename) const {
-        std::ofstream file(filename);
-        if (!file.is_open()) {
-            throw std::runtime_error("[ERROR]: Sprite2.saveSpriteToFile(): Unable to open file for writing.");
-        }
-
-        file << m_duration << '\n';
-        file << m_sprite_height << '\n';
-        file << m_sprite_width << '\n';
-
-        for (size_t i = 0; i < m_frames.size(); ++i) {
-            file << i << '\n'; // frame number between frames
-            for (const auto& row : m_frames[i]) {
-                file << row;
-                file << '\n';
-            }
-        }
-    }
-    //
-    // Load from file
-    void loadFromFile(const std::string& filename) {
-        std::ifstream file(filename);
-        if (!file.is_open()) {
-            throw std::runtime_error("[ERROR]: Sprite2.loadFromFile(): Unable to open file for reading.");
-        }
-
-        file >> m_duration;
-        file >> m_sprite_height;
-        file >> m_sprite_width;
-        file.ignore(std::numeric_limits<std::streamsize>::max(), '\n'); // skip 0 m_frames.clear();
-        std::string line;
-
-        int c = 5;
-        while (std::getline(file, line)) {
-            if (c % (m_sprite_width+1) != 0) {
-                std::vector<std::string> frame;
-                for (int i = 0; i < m_sprite_height; ++i) {
-                    std::getline(file, line);
-                    frame.push_back(line);
-                }
-                addFrame(frame);
-            }
-            c++;
-        }
-    }
-};
 
 // Enemy
 class Enemy {
@@ -260,6 +166,7 @@ protected:
     // Lab 5
     static int enemyCount;
 public:
+
     // Constructor
     Enemy(int hp, double y, double x) : m_health(hp), m_x(x), m_y(y) {
         m_cur_sprite_frame = 0;
@@ -267,6 +174,7 @@ public:
         // Lab 5
         enemyCount++;
     }
+
     //
     // Destructor
     virtual ~Enemy() 
@@ -290,8 +198,8 @@ public:
         return m_y;
     }
 
-    virtual void attack() const {
-        std::cout << "Enemy attacks!" << std::endl;
+    virtual void attack() {
+        std::cout << "Enemy attacks" << std::endl;
     }
 };
 int Enemy::enemyCount = 0;
@@ -299,16 +207,16 @@ class Goblin : public Enemy {
 public:
     Goblin(int hp, double x, double y) : Enemy(hp, x, y) {}
 
-    void attack() const override {
-        std::cout << "Goblin attacks with a club!" << std::endl;
+    void attack() override {
+        std::cout << "Goblin attacks" << std::endl;
     }
 };
 class Orc : public Enemy {
 public:
     Orc(int hp, double x, double y) : Enemy(hp, x, y) {}
 
-    void attack() const override {
-        std::cout << "Orc attacks with an axe!" << std::endl;
+    void attack() override {
+        std::cout << "Orc attacks" << std::endl;
     }
 };
 
@@ -568,6 +476,8 @@ private:
     std::vector<std::vector<InventoryCell>> m_cells;
     int m_currentCell;
 
+    Sprite m_temp_combined;
+
 public:
     // Constructor
     Inventory(int rows, int columns, const Sprite& cellSprite)
@@ -589,20 +499,25 @@ public:
         }
     }
 
-    Sprite combineCellsToSprite() {
-        Sprite combinedSprite;
-        // Логика объединения спрайтов ячеек в один спрайт
-        // Примерно так:
-        for (int row = 0; row < m_rows; ++row) {
-            for (int col = 0; col < m_columns; ++col) {
-                Item* item = m_cells[row][col].getItem();
-                if (item) {
-                    Sprite cellSprite = m_cells[row][col].getCellSprite();
-                    // Добавляем спрайт ячейки к объединенному спрайту
-                    combinedSprite.addFrame(cellSprite.getFrame(0)); // Пример, добавляем только первый кадр
-                }
+    Sprite combineCellsToOneSprite() {
+        int single_cell_width = m_cells[0][0].getCellSprite().getSpriteWidth();
+        int single_cell_height = m_cells[0][0].getCellSprite().getSpriteHeight();
+
+        std::vector<std::vector<char>> inventory_grid;
+
+        Sprite combinedSprite = Sprite(0, single_cell_height * m_rows + 2, single_cell_width * m_columns + 2);
+        
+        for (int i = 0; i < m_columns; i++) 
+        {
+            for (int j = 0; i < m_rows; j++)
+            {
+                int c_w = m_rows % single_cell_width;
+                int c_h = m_columns % single_cell_height;
+                inventory_grid[i][j] = m_cells[0][0].getCellSprite().getFrame(0)[c_h][c_w];
             }
         }
+        combinedSprite.addFrame(inventory_grid);
+
         return combinedSprite;
     }
 };

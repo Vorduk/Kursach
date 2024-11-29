@@ -142,17 +142,17 @@ void mainLoop(Screen screen, Map map, Camera camera) {
 
 int main()
 {
-    Map my_map = loadMapFromFile("MAP1.txt");
+    //Map my_map = loadMapFromFile("MAP1.txt");
 
-    Screen* my_screen = new Screen();
+    //Screen* my_screen = new Screen();
 
-    Camera* my_camera = new Camera();
+    //Camera* my_camera = new Camera();
 
-    mainLoop(*my_screen, my_map, *my_camera);
-    //testLoop(*my_screen, my_map, *my_camera);
+    //mainLoop(*my_screen, my_map, *my_camera);
+    ////testLoop(*my_screen, my_map, *my_camera);
 
-    delete my_screen;
-    delete my_camera;
+    //delete my_screen;
+    //delete my_camera;
 
     return 0;
 }
