@@ -12,6 +12,7 @@
 #include <memory>
 #include <limits>
 #include <stdexcept>
+#include <algorithm>
 
 #include "Actions.h"
 #include "Behavior.h"
@@ -910,6 +911,27 @@ public:
     //
     const std::vector<std::shared_ptr<Enemy>>& getEnemies() const {
         return m_enemies;
+    }
+
+    void sortEnemiesByHealth() {
+        std::sort(m_enemies.begin(), m_enemies.end(), [](const std::shared_ptr<Enemy>& a, const std::shared_ptr<Enemy>& b) {
+            return a->getHealth() < b->getHealth();
+            });
+    }
+
+    // ћетод дл€ поиска врага по здоровью
+    std::shared_ptr<Enemy> findEnemyByHealth(int health) {
+        auto it = std::find_if(m_enemies.begin(), m_enemies.end(), [health](const std::shared_ptr<Enemy>& enemy) {
+            return enemy->getHealth() == health;
+            });
+        return (it != m_enemies.end()) ? *it : nullptr; // ¬озвращаем найденного врага или nullptr, если не найден
+    }
+
+    // ћетод дл€ вывода всех врагов (дл€ тестировани€)
+    void printEnemies() const {
+        for (const auto& enemy : m_enemies) {
+            std::cout << "Enemy Health: " << enemy->getHealth() << std::endl;
+        }
     }
 };
 

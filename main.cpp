@@ -154,24 +154,32 @@ int main()
     //delete my_camera;
 
     
-    std::cout << "Goblin:" << std::endl;
-    Goblin goblin(100, 0.0, 0.0);
-    goblin.performFly(); 
-    goblin.performJump();
-    goblin.performRun(); 
+    Map map;
 
-    std::cout << "\nOrc:" << std::endl;
-    Orc orc(150, 1.0, 1.0);
-    orc.performFly(); 
-    orc.performJump();
-    orc.performRun(); 
+    // Добавим несколько врагов
+    map.addEnemy(std::make_shared<Goblin>(50, 5, 5));
+    map.addEnemy(std::make_shared<Orc>(30, 10, 10));
+    map.addEnemy(std::make_shared<Dragon>(70, 15, 15));
 
-    std::cout << "\nDragon:" << std::endl;
-    Dragon dragon(200, 0.0, 0.0);
-    dragon.performFly(); 
-    dragon.performJump();
-    dragon.performRun(); 
-    dragon.performWalk();
+    std::cout << "Enemies before sorting:" << std::endl;
+    map.printEnemies();
+
+    // Сортировк по здоровью
+    map.sortEnemiesByHealth();
+    std::cout << "Enemies after sorting by health:" << std::endl;
+    map.printEnemies();
+
+    // Поиск с опр. здоровьем
+    int searchHealth = 30;
+    auto foundEnemy = map.findEnemyByHealth(searchHealth);
+    if (foundEnemy) {
+        std::cout << "Found enemy with health " << searchHealth << std::endl;
+    }
+    else {
+        std::cout << "No enemy found with health " << searchHealth << std::endl;
+    }
+
+    return 0;
 
     return 0;
 }
