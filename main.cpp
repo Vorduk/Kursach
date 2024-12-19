@@ -156,7 +156,6 @@ int main()
     
     Map map;
 
-    // Добавим несколько врагов
     map.addEnemy(std::make_shared<Goblin>(50, 5, 5));
     map.addEnemy(std::make_shared<Orc>(30, 10, 10));
     map.addEnemy(std::make_shared<Dragon>(70, 15, 15));
@@ -179,7 +178,46 @@ int main()
         std::cout << "No enemy found with health " << searchHealth << std::endl;
     }
 
-    return 0;
+    Sprite cellSprite; 
+
+
+    Inventory inventory(3, 3, cellSprite);
+
+    // Добавляем предметы в инвентарь
+    inventory.addItem(new Pistol(0, 0, 10, cellSprite, cellSprite), 0, 0);
+    inventory.addItem(new Ammo(0, 0, 30, cellSprite, cellSprite, 15), 1, 0);
+    inventory.addItem(new Armor(0, 0, 5, cellSprite, cellSprite, 50), 0, 1);
+    inventory.addItem(new Rifle(0, 0, 7, cellSprite, cellSprite), 1, 1);
+    inventory.addItem(new FirstAidKit(0, 0, 3, cellSprite, cellSprite, 20), 2, 0);
+
+    // До сортировки
+    std::cout << "Before sorting:\n";
+    for (int i = 0; i < 3; ++i) {
+        for (int j = 0; j < 3; ++j) {
+            Item* item = inventory.getCell(i, j).getItem();
+            if (item) {
+                std::cout << item->getType() << " ";
+            }
+        }
+        std::cout << "\n";
+    }
+
+    // Сортировка по типу
+    inventory.sortItemsByType();
+
+    // После сортировки 
+    // После сортировки 
+    std::cout << "\nAfter sorting:\n";
+    for (int i = 0; i < 3; ++i) {
+        for (int j = 0; j < 3; ++j) {
+            Item* item = inventory.getCell(i, j).getItem();
+            if (item) {
+                std::cout << item->getType() << " "; 
+            }
+        }
+        std::cout << "\n";
+    }
+
 
     return 0;
 }

@@ -484,7 +484,7 @@ public:
 
     // Getters and setters
     void setItem(Item* item) {
-        if (item->isFinal()) {
+        if (item != nullptr && item->isFinal()) {
             m_cell_item_sprite = item->getCellItemSprite();
             m_item = item;
         }
@@ -575,6 +575,10 @@ public:
         }
     }
 
+    InventoryCell& getCell(int row, int column) {
+        return m_cells[row][column];
+    }
+
     Sprite combineCellsToOneSprite() {
         int single_cell_width = m_cells[0][0].getCellSprite().getSpriteWidth();
         int single_cell_height = m_cells[0][0].getCellSprite().getSpriteHeight();
@@ -595,6 +599,39 @@ public:
         combinedSprite.addFrame(inventory_grid);
 
         return combinedSprite;
+    }
+
+    void sortItemsByType() {
+        std::vector<Item*> items;
+
+        for (int i = 0; i < m_rows; ++i) {
+            for (int j = 0; j < m_columns; ++j) {
+                Item* item = m_cells[i][j].getItem();
+                if (item) {
+                    items.push_back(item);
+                }
+            }
+        }
+
+        // Сортировка по типу
+        std::sort(items.begin(), items.end(), [](Item* a, Item* b) {
+            return a->getType() < b->getType();
+            });
+
+        // Очистка инвентаря
+        for (int i = 0; i < m_rows; ++i) {
+            for (int j = 0; j < m_columns; ++j) {
+                m_cells[i][j].setItem(nullptr);
+            }
+        }
+
+        // Заполнение уже отсортированными предметамии
+        int index = 0;
+        for (int i = 0; i < m_rows && index < items.size(); ++i) {
+            for (int j = 0; j < m_columns && index < items.size(); ++j) {
+                m_cells[i][j].setItem(items[index++]);
+            }
+        }
     }
 };
 
@@ -919,7 +956,6 @@ public:
             });
     }
 
-    // Метод для поиска врага по здоровью
     std::shared_ptr<Enemy> findEnemyByHealth(int health) {
         auto it = std::find_if(m_enemies.begin(), m_enemies.end(), [health](const std::shared_ptr<Enemy>& enemy) {
             return enemy->getHealth() == health;
@@ -927,7 +963,6 @@ public:
         return (it != m_enemies.end()) ? *it : nullptr; // Возвращаем найденного врага или nullptr, если не найден
     }
 
-    // Метод для вывода всех врагов (для тестирования)
     void printEnemies() const {
         for (const auto& enemy : m_enemies) {
             std::cout << "Enemy Health: " << enemy->getHealth() << std::endl;
