@@ -149,10 +149,29 @@ int main()
     //Camera* my_camera = new Camera();
 
     //mainLoop(*my_screen, my_map, *my_camera);
-    ////testLoop(*my_screen, my_map, *my_camera);
 
     //delete my_screen;
     //delete my_camera;
+
+    
+    std::cout << "Goblin:" << std::endl;
+    Goblin goblin(100, 0.0, 0.0);
+    goblin.performFly(); 
+    goblin.performJump();
+    goblin.performRun(); 
+
+    std::cout << "\nOrc:" << std::endl;
+    Orc orc(150, 1.0, 1.0);
+    orc.performFly(); 
+    orc.performJump();
+    orc.performRun(); 
+
+    std::cout << "\nDragon:" << std::endl;
+    Dragon dragon(200, 0.0, 0.0);
+    dragon.performFly(); 
+    dragon.performJump();
+    dragon.performRun(); 
+    dragon.performWalk();
 
     return 0;
 }

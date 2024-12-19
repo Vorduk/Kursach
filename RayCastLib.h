@@ -13,6 +13,9 @@
 #include <limits>
 #include <stdexcept>
 
+#include "Actions.h"
+#include "Behavior.h"
+
 //Coords: (screen, map, player)
 // +-------> x
 // | 0000000
@@ -52,14 +55,18 @@ private:
     int m_sprite_width;
     std::vector<std::vector<std::vector<char>>> m_frames;
 public:
+    // Construuctors
     Sprite() {
         m_duration = 0;
         m_sprite_height = 0;
         m_sprite_width = 0;
     }
-    // Construuctor
     Sprite(int duration, int height, int width)
         : m_duration(duration), m_sprite_height(height), m_sprite_width(width) {}
+    Sprite(const Sprite& other) : m_duration(other.m_duration), m_sprite_height(other.m_sprite_height), m_sprite_width(other.m_sprite_width), m_frames(other.m_frames)
+    {
+
+    }
     //
     // Getters and setters
     int getDuration() const { return m_duration; }
@@ -163,24 +170,37 @@ protected:
     double m_x, m_y;
     int m_cur_sprite_frame;
 
+    // Lab 7
+    IFlyAction* flyAction;
+    IJumpAction* jumpAction;
+    IRunAction* runAction;
+    IWalkAction* walkAction;
+
     // Lab 5
     static int enemyCount;
 public:
 
-    // Constructor
-    Enemy(int hp, double y, double x) : m_health(hp), m_x(x), m_y(y) {
+    // Constructors
+    Enemy(int hp, double y, double x, IFlyAction* fly, IJumpAction* jump, IRunAction* run, IWalkAction* walk) : m_health(hp), m_x(x), m_y(y), flyAction(fly), jumpAction(jump), runAction(run), walkAction(walk){
         m_cur_sprite_frame = 0;
 
         // Lab 5
         enemyCount++;
     }
+    Enemy(const Enemy& other) : m_health(other.m_health), m_x(other.m_x),m_y(other.m_y), m_cur_sprite_frame(other.m_cur_sprite_frame)
+    {
 
+    }
     //
     // Destructor
     virtual ~Enemy() 
     {
         // Lab 5
         enemyCount--;
+        delete flyAction;
+        delete jumpAction;
+        delete runAction;
+        delete walkAction;
     };
     //
     // Getters and setters
@@ -197,28 +217,70 @@ public:
     double getY() const {
         return m_y;
     }
-
+    int getCurrentSpriteFrame() const
+    {
+        return m_cur_sprite_frame;
+    }
     virtual void attack() {
         std::cout << "Enemy attacks" << std::endl;
     }
+
+    void performFly() {
+        if (flyAction) {
+            flyAction->fly();
+        }
+    }
+
+    void performJump() {
+        if (jumpAction) {
+            jumpAction->jump();
+        }
+    }
+
+    void performRun() {
+        if (runAction) {
+            runAction->run();
+        }
+    }
+
+    void performWalk() {
+        if (walkAction) {
+            walkAction->walk();
+        }
+    }
 };
 int Enemy::enemyCount = 0;
+
 class Goblin : public Enemy {
 public:
-    Goblin(int hp, double x, double y) : Enemy(hp, x, y) {}
+    Goblin(int hp, double y, double x)
+        : Enemy(hp, y, x, new FlyWithoutWings(), new JumpWithLegs(), new RunWithLegs(), new WalkWithLegs()) {}
 
     void attack() override {
         std::cout << "Goblin attacks" << std::endl;
     }
 };
+
 class Orc : public Enemy {
 public:
-    Orc(int hp, double x, double y) : Enemy(hp, x, y) {}
+    Orc(int hp, double y, double x)
+        : Enemy(hp, y, x, new FlyWithoutWings(), new JumpWithLegs(), new RunWithLegs(), new WalkWithLegs()) {}
 
     void attack() override {
         std::cout << "Orc attacks" << std::endl;
     }
 };
+
+class Dragon : public Enemy {
+public:
+    Dragon(int hp, double y, double x)
+        : Enemy(hp, y, x, new FlyWithoutWings(), new JumpWithLegs(), new RunWithoutLegs(), new WalkWithLegs()) {}
+
+    void attack() override {
+        std::cout << "Dragon attacks" << std::endl;
+    }
+};
+    
 
 // Item (items)
 class Item {
@@ -316,10 +378,6 @@ public:
         return area;
     }
 
-    std::string getType() const override {
-        return "Gun";
-    }
-
     virtual bool isFinal() const { return false; }
 };
 // Guns variants
@@ -414,6 +472,14 @@ public:
     {
 
     }
+    InventoryCell(const InventoryCell& other)
+        : m_item(other.m_item),
+        m_cell_sprite(other.m_cell_sprite),
+        m_is_rendered(other.m_is_rendered),
+        m_cell_item_sprite(other.m_cell_item_sprite)
+    {
+
+    }
 
     // Getters and setters
     void setItem(Item* item) {
@@ -484,6 +550,15 @@ public:
         : m_rows(rows), m_columns(columns), m_currentCell(0) {
         m_cells.resize(rows, std::vector<InventoryCell>(columns, InventoryCell(cellSprite)));
     }
+    Inventory(const Inventory& other)
+        : m_rows(other.m_rows),
+        m_columns(other.m_columns),
+        m_cells(other.m_cells),
+        m_currentCell(other.m_currentCell),
+        m_temp_combined(other.m_temp_combined) 
+    {
+
+    }
 
     void setCurrentCell(int index) {
         if (index >= 0 && index < m_rows * m_columns) {
@@ -551,6 +626,18 @@ public:
         m_player_prev_y = m_player_x;
         m_player_prev_x = m_player_x;
     };
+    //
+    // Copy constructor
+    Player(const Player& other)
+        : m_player_health(other.m_player_health),
+        m_player_prev_y(other.m_player_prev_y),
+        m_player_prev_x(other.m_player_prev_x),
+        m_player_y(other.m_player_y),
+        m_player_x(other.m_player_x),
+        m_player_angle(other.m_player_angle) 
+    {
+
+    }
     //
     // Destructor
     ~Player() {
@@ -683,6 +770,18 @@ public:
         m_render_distance = render_distance;
     }
     //
+    // Copy constructor
+    Camera(const Camera& other)
+        : m_camera_y(other.m_camera_y),
+        m_camera_x(other.m_camera_x),
+        m_camera_angle(other.m_camera_angle),
+        m_fov_c(other.m_fov_c),
+        m_fov(other.m_fov),
+        m_render_distance(other.m_render_distance) 
+    {
+
+    }
+    //
     // Destructor
     ~Camera() {
 
@@ -753,7 +852,7 @@ public:
 		obstacle.resize(m_map_height, std::vector<char>(m_map_width, ' '));
         m_player = Player();
 	}
-
+    //
 	// Constructor
 	Map(int map_height, int map_width, Player player) {
 		m_map_height = map_height;
@@ -761,7 +860,18 @@ public:
 		obstacle.resize(m_map_height, std::vector<char>(m_map_width, ' '));
         m_player = player;
 	};
+    //
+    // Copy constructor
+    Map(const Map& other)
+        : m_map_height(other.m_map_height),
+        m_map_width(other.m_map_width),
+        obstacle(other.obstacle),
+        m_player(other.m_player),
+        m_enemies(other.m_enemies) 
+    {
 
+    }
+    //
 	// Destructor
 	~Map() {
 
@@ -829,6 +939,15 @@ public:
     Screen(int scr_height, int scr_width) : m_scr_height(scr_height), m_scr_width(scr_width) {
         m_screen.resize(m_scr_height, std::vector<char>(m_scr_width, ' '));
     };
+    //
+    // Copy constructor
+    Screen(const Screen& other)
+        : m_screen(other.m_screen),
+        m_scr_height(other.m_scr_height),
+        m_scr_width(other.m_scr_width) 
+    {
+
+    }
     //
     // Destructor
     ~Screen() {
@@ -1207,6 +1326,9 @@ void saveMap(const char* filename, const Map& map) {
         }
         else if (enemy_type == typeid(Orc).name()) {
             enemy_type = "Orc";
+        }
+        else if (enemy_type == typeid(Dragon).name()) {
+            enemy_type = "Dragon";
         }
 
         file << enemy_type << std::endl;
